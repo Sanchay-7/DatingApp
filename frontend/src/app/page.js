@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -14,7 +15,13 @@ export default function Home() {
           <a className="text-sm hover:underline" href="#bff">BFF</a>
           <a className="text-sm hover:underline" href="#stories">Stories</a>
           <a className="text-sm hover:underline" href="#events">Events</a>
-          <button className="px-4 py-2 rounded-full bg-black text-white text-sm">Sign in</button>
+          <Link href="/signin" className="px-6 py-3 bg-pink-600 text-white rounded-full hover:bg-pink-700">
+          Sign In
+        </Link>
+        <Link href="/signup" className="px-6 py-3 border border-pink-600 text-pink-600 rounded-full hover:bg-pink-50">
+          Sign Up
+        </Link>
+
         </nav>
       </header>
 
