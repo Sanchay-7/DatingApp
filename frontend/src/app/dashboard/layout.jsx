@@ -1,7 +1,12 @@
-// app/(dashboard)/layout.jsx (Layout with Sidebar)
+// DatingApp/frontend/src/app/dashboard/layout.jsx
 
-import Sidebar from "@/components/Sidebar";
-import React from 'react'; // Import React for the component
+"use client"; // Add this directive for client-side components
+
+// Make sure React is imported if needed, though Next.js 13+ handles it often.
+import React from 'react';
+
+// Use the correct '@' alias to import your Sidebar
+import Sidebar from '@/components/Sidebar';
 
 export default function DashboardLayout({ children }) {
     return (

@@ -1,4 +1,5 @@
-// components/Sidebar.jsx (Completion % Removed)
+// DatingApp/frontend/src/components/Sidebar.jsx
+
 'use client';
 
 import React from 'react';
@@ -8,13 +9,16 @@ import { usePathname } from 'next/navigation';
 export default function Sidebar() {
     const currentPath = usePathname();
 
+    // --- THIS IS THE UPDATED BLOCK ---
+    // The href paths now correctly point to your new folder structure.
     const navLinks = [
-        { name: "Discover", href: "/", icon: "👀" },
-        { name: "Messages", href: "/messages", icon: "✉️" },
-        { name: "Likes You", href: "/likes", icon: "👍" },
-        { name: "My Profile", href: "/profile", icon: "👤" },
-        { name: "Settings", href: "/settings", icon: "⚙️" },
+        { name: "Discover", href: "/dashboard/user", icon: "👀" },
+        { name: "Messages", href: "/dashboard/user/messages", icon: "✉️" },
+        { name: "Likes You", href: "/dashboard/user/likes", icon: "👍" },
+        { name: "My Profile", href: "/dashboard/user/profile", icon: "👤" },
+        { name: "Settings", href: "/dashboard/user/settings", icon: "⚙️" },
     ];
+    // --- END OF UPDATED BLOCK ---
 
     const activeClass = "flex items-center p-3 rounded-lg bg-pink-600 text-white font-semibold";
     const inactiveClass = "flex items-center p-3 rounded-lg text-gray-300 hover:bg-gray-700";
@@ -29,6 +33,7 @@ export default function Sidebar() {
             <nav className="space-y-2 flex-grow">
 
                 {navLinks.map((link) => {
+                    // This logic compares the start of the path to handle nested routes
                     const isActive = currentPath === link.href;
 
                     return (
@@ -51,13 +56,6 @@ export default function Sidebar() {
                 <div>
                     <p className="font-semibold text-white">Jane Doe</p>
                     <p className="text-xs text-green-400">Active</p>
-
-                    {/* These lines were REMOVED:
-                    <div className="w-full h-1.5 bg-gray-700 rounded-full mt-1">
-                        <div className="h-full bg-green-500 rounded-full w-3/4"></div>
-                    </div>
-                    <p className="text-xs mt-1">75% Complete</p>
-                    */}
                 </div>
             </div>
 
