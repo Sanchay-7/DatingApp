@@ -1,10 +1,39 @@
-// app/messages/page.jsx
+// src/app/dashboard/user/messages/page.jsx
 'use client';
 
-import React from 'react';
-import { Send } from 'lucide-react'; // This icon should now work after installation
+import React, { useState } from 'react';
+import { Send } from 'lucide-react';
 
-const MessagesPage = () => {
+export default function MessagesPage() {
+    // 1. State for the chat messages and the current input text
+    const [messages, setMessages] = useState([
+        { id: 1, text: "Hello! I saw your profile. How are you?", sender: 'other' },
+        { id: 2, text: "I'm great, thanks for asking!", sender: 'self' },
+    ]);
+    const [input, setInput] = useState('');
+
+    // 2. Function to handle sending a new message
+    const handleSubmit = (e) => {
+        e.preventDefault(); // Prevents page reload if called from a form
+        if (input.trim() === '') return; // Don't send empty messages
+
+        const newMessage = {
+            id: messages.length + 1,
+            text: input,
+            sender: 'self',
+        };
+
+        setMessages([...messages, newMessage]); // Add the new message to the list
+        setInput(''); // Clear the input field
+    };
+
+    // Placeholder data for the conversation list
+    const conversations = [
+        { id: 1, name: "Priya", status: "Active", lastMessage: "You: Hi, how are you?", isActive: true },
+        { id: 2, name: "Rohan API", status: "Offline", lastMessage: "I'm good, thanks!", isActive: false },
+        { id: 3, name: "Alex", status: "Active", lastMessage: "See you Friday!", isActive: false },
+    ];
+
     return (
         <div className="p-8 h-full bg-gray-50">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Messages</h1>
@@ -18,27 +47,23 @@ const MessagesPage = () => {
                         <input
                             type="text"
                             placeholder="Search chats..."
-                            // FIX: Added text-gray-900 for dark typed text
                             className="w-full p-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 text-gray-900"
                         />
                     </div>
                     <div className="space-y-1">
-                        {/* Placeholder for Conversations */}
-                        <div className="p-3 flex items-center bg-indigo-100 border-l-4 border-indigo-600 cursor-pointer">
-                            <div className="w-10 h-10 bg-indigo-200 rounded-full mr-3"></div>
-                            <div>
-                                <p className="font-semibold text-gray-800">Priya (Active)</p>
-                                <p className="text-xs text-indigo-600">You: Hi, how are you?</p>
+                        {/* Map over conversation list data */}
+                        {conversations.map(chat => (
+                            <div
+                                key={chat.id}
+                                className={`p-3 flex items-center cursor-pointer ${chat.isActive ? 'bg-indigo-100 border-l-4 border-indigo-600' : 'hover:bg-gray-50'}`}
+                            >
+                                <div className={`w-10 h-10 ${chat.isActive ? 'bg-indigo-200' : 'bg-gray-200'} rounded-full mr-3`}></div>
+                                <div>
+                                    <p className="font-semibold text-gray-800">{chat.name} ({chat.status})</p>
+                                    <p className={`text-xs ${chat.isActive ? 'text-indigo-600' : 'text-gray-500'}`}>{chat.lastMessage}</p>
+                                </div>
                             </div>
-                        </div>
-                        {/* Other chat placeholders... */}
-                        <div className="p-3 flex items-center hover:bg-gray-50 cursor-pointer">
-                            <div className="w-10 h-10 bg-gray-200 rounded-full mr-3"></div>
-                            <div>
-                                <p className="font-semibold text-gray-800">Rohan API</p>
-                                <p className="text-xs text-gray-500">I'm good, thanks!</p>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
 
@@ -50,35 +75,34 @@ const MessagesPage = () => {
 
                     {/* Message Display Area */}
                     <div className="flex-grow overflow-y-auto p-6 space-y-4">
-                        <div className="flex justify-start">
-                            <div className="bg-gray-200 text-gray-800 p-3 rounded-xl rounded-tl-none max-w-xs">
-                                Hello! I saw your profile. How are you?
+                        {messages.map(msg => (
+                            <div key={msg.id} className={`flex ${msg.sender === 'self' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`p-3 rounded-xl max-w-xs ${msg.sender === 'self' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-gray-200 text-gray-800 rounded-tl-none'}`}>
+                                    {msg.text}
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <div className="bg-indigo-600 text-white p-3 rounded-xl rounded-tr-none max-w-xs">
-                                I'm great, thanks for asking!
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
                     {/* Message Input with Send Button */}
-                    <div className="border-t p-4 flex space-x-2">
+                    <form onSubmit={handleSubmit} className="border-t p-4 flex space-x-2">
                         <input
                             type="text"
                             placeholder="Type a message..."
-                            // FIX: Added text-gray-900 for dark typed text
+                            value={input} // Connects input value to React state
+                            onChange={(e) => setInput(e.target.value)} // Updates state as user types
                             className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500 text-gray-900"
                         />
-                        <button className="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-150 flex items-center justify-center">
+                        <button
+                            type="submit"
+                            className="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-150 flex items-center justify-center"
+                        >
                             <Send className="w-5 h-5" />
                         </button>
-                    </div>
+                    </form>
                 </div>
 
             </div>
         </div>
     );
-};
-
-export default MessagesPage;
+}
