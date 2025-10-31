@@ -1,43 +1,16 @@
 // src/app/admin/moderation/page.jsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckSquare } from 'lucide-react';
 import ImageComponent from 'next/image';
 // IMPORT THE NEW COMPONENT
 import AdminCard from '@/components/AdminCard';
 
-// Dummy data for moderation queue
-const MODERATION_QUEUE = [
-    {
-        id: 1,
-        type: 'photo',
-        content: 'https://via.placeholder.com/300x200/ff0000/ffffff?text=Reported+Photo',
-        reason: 'Flagged for explicit content',
-        reporter: 'User A',
-        reportedUser: 'User X'
-    },
-    {
-        id: 2,
-        type: 'bio',
-        content: 'I hate people who...',
-        reason: 'Reported for hate speech / vulgar language in bio: "I hate people who..."',
-        reporter: 'User B',
-        reportedUser: 'User Y'
-    },
-    {
-        id: 3,
-        type: 'photo',
-        content: 'https://via.placeholder.com/300x200/0000ff/ffffff?text=Photo+Inappropriate',
-        reason: 'Flagged for non-person image (ad/spam)',
-        reporter: 'User C',
-        reportedUser: 'User Z'
-    },
-];
+// Dummy data for moderation queue - REMOVED
 
-// Reusable Moderation Card Component - NOW WRAPPED IN <AdminCard />
+// Reusable Moderation Card Component - No changes needed here
 const ModerationCard = ({ item }) => (
-    // Removed all background/border styling from the div below, AdminCard handles it
     <AdminCard title={`Item ID: ${item.id} (For ${item.reportedUser})`}>
         <div className="flex justify-between items-center mb-3 border-b border-gray-600 pb-2">
             <span className={`px-3 py-1 text-xs font-semibold rounded-full ${item.type === 'photo' ? 'bg-pink-600' : 'bg-indigo-600'} text-white`}>
@@ -78,7 +51,44 @@ const ModerationCard = ({ item }) => (
 
 
 export default function ModerationPage() {
-    const totalPending = MODERATION_QUEUE.length;
+    // State is now initialized to an empty array
+    const [moderationQueue, setModerationQueue] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // --- API FETCH LOGIC (SAVED FOR LATER) ---
+    /*
+    // TODO: After this PR is merged, uncomment this block.
+    
+    useEffect(() => {
+        const API_ENDPOINT = "http://localhost:5000/api/admin/moderation"; 
+        
+        async function fetchQueue() {
+            setIsLoading(true); 
+            try {
+                const response = await fetch(API_ENDPOINT); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+                setModerationQueue(data.queue || data); 
+            } catch (error) {
+                console.error("Failed to fetch moderation queue:", error);
+                setModerationQueue([]); 
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchQueue();
+    }, []); // Empty array means "run once"
+    */
+
+    // --- TEMPORARY: Simulate loading complete (since fetch is commented) ---
+    useEffect(() => {
+        setIsLoading(false);
+    }, []);
+    // --- END TEMPORARY ---
+
+    const totalPending = moderationQueue.length;
 
     return (
         <div>
@@ -87,7 +97,7 @@ export default function ModerationPage() {
                 Content Moderation Queue
             </h1>
 
-            {/* Overview Stats - NOW WRAPPED IN <AdminCard /> */}
+            {/* Overview Stats */}
             <div className="mb-8">
                 <AdminCard title="Queue Status">
                     <p className="text-lg text-gray-300 font-medium">
@@ -99,18 +109,24 @@ export default function ModerationPage() {
 
 
             {/* Moderation Queue Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {totalPending > 0 ? (
-                    MODERATION_QUEUE.map(item => (
-                        <ModerationCard key={item.id} item={item} />
-                    ))
-                ) : (
-                    <div className="lg:col-span-3 text-center p-12 bg-gray-800 rounded-xl">
-                        <CheckSquare className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                        <p className="text-xl text-gray-300">Queue Cleared! No pending moderation items.</p>
-                    </div>
-                )}
-            </div>
+            {isLoading ? (
+                <AdminCard title="Loading Queue...">
+                    <p className="text-center text-gray-400">Loading items...</p>
+                </AdminCard>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {totalPending > 0 ? (
+                        moderationQueue.map(item => (
+                            <ModerationCard key={item.id} item={item} />
+                        ))
+                    ) : (
+                        <div className="lg:col-span-3 text-center p-12 bg-gray-800 rounded-xl">
+                            <CheckSquare className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                            <p className="text-xl text-gray-300">Queue Cleared! No pending moderation items.</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

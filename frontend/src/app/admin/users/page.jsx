@@ -1,17 +1,10 @@
-// src/app/dashboard/admin/users/page.jsx
+// src/app/admin/users/page.jsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Trash2, Edit } from 'lucide-react';
 
-// Dummy data for the table
-const DUMMY_USERS = [
-    { id: 1, name: "Alex Johnson", email: "alexj@email.com", status: "Active", joined: "12/02/23", gender: "Male" },
-    { id: 2, name: "Sarah Lee", email: "sarahL@email.com", status: "Suspended", joined: "05/10/22", gender: "Female" },
-    { id: 3, name: "Omar Khan", email: "omark@email.com", status: "Active", joined: "01/01/24", gender: "Male" },
-    { id: 4, name: "Jane Doe", email: "janeD@email.com", status: "Active", joined: "08/15/23", gender: "Female" },
-    { id: 5, name: "Chris Brown", email: "chrisb@email.com", status: "Suspended", joined: "03/20/23", gender: "Male" },
-];
+// DUMMY_USERS array has been removed.
 
 // Helper component for the status badge color
 const StatusBadge = ({ status }) => {
@@ -24,15 +17,59 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function UserManagementPage() {
-    const [users, setUsers] = useState(DUMMY_USERS);
+    // State is now initialized to an empty array
+    const [users, setUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // --- API FETCH LOGIC (SAVED FOR LATER) ---
+    /*
+    // TODO: After this PR is merged, uncomment this block.
+    
+    useEffect(() => {
+        const API_ENDPOINT = "http://localhost:5000/api/admin/users"; 
+        
+        async function fetchUsers() {
+            setIsLoading(true); 
+            try {
+                const response = await fetch(API_ENDPOINT); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+                setUsers(data.users || data); 
+            } catch (error) {
+                console.error("Failed to fetch users:", error);
+                setUsers([]); 
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchUsers();
+    }, []); // Empty array means "run once"
+    */
+
+    // --- TEMPORARY: Simulate loading complete (since fetch is commented) ---
+    useEffect(() => {
+        setIsLoading(false);
+    }, []);
+    // --- END TEMPORARY ---
 
     const handleBan = (userId) => {
         // In a real app, this would call an API endpoint: POST /admin/user/ban/:userId
-        alert(`Banning user ID: ${userId}`);
-        // Locally update state to show change
+        console.log(`Banning user ID: ${userId}`);
+        // REMOVED: alert(`Banning user ID: ${userId}`);
+
+        // This local update is temporary. After the API call,
+        // we would ideally re-fetch the user list or update based on success.
         setUsers(users.map(u => u.id === userId ? { ...u, status: 'Suspended' } : u));
     };
+
+    // Filtered users for the search bar
+    const filteredUsers = users.filter(user =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div>
@@ -71,31 +108,38 @@ export default function UserManagementPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700 text-gray-300">
-                            {users.filter(user =>
-                                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                user.email.toLowerCase().includes(searchTerm.toLowerCase())
-                            ).map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-700">
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium">{user.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{user.email}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <StatusBadge status={user.status} />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{user.joined}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{user.gender}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                                        <button className="text-indigo-400 hover:text-indigo-300 transition">
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleBan(user.id)}
-                                            className="text-red-400 hover:text-red-300 transition"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </td>
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="6" className="text-center py-10 text-gray-400">Loading users...</td>
                                 </tr>
-                            ))}
+                            ) : filteredUsers.length > 0 ? (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id} className="hover:bg-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap font-medium">{user.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{user.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <StatusBadge status={user.status} />
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{user.joined}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{user.gender}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                                            <button className="text-indigo-400 hover:text-indigo-300 transition">
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleBan(user.id)}
+                                                className="text-red-400 hover:text-red-300 transition"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="text-center py-10 text-gray-400">No users found.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
