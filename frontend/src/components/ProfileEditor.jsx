@@ -1,18 +1,57 @@
 // DatingApp/frontend/src/components/ProfileEditor.jsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+// This is the clean, empty state for a new user or on error
+const BLANK_PROFILE = {
+    name: "",
+    age: 18,
+    bio: "",
+    job: "",
+    location: "",
+    interests: [],
+};
 
 export default function ProfileEditor() {
-    // State to hold the current profile data (using dummy data for now)
-    const [profileData, setProfileData] = useState({
-        name: "Jane Doe",
-        age: 28,
-        bio: "Coffee enthusiast, avid hiker, and cat mom. Looking for someone who can make me laugh.",
-        job: "Software Engineer",
-        location: "San Francisco, CA",
-        interests: ["Hiking", "Cooking", "Travel", "Reading"],
-    });
+    // State to hold the profile data, initialized to null
+    const [profileData, setProfileData] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // --- API FETCH LOGIC (SAVED FOR LATER) ---
+    /*
+    // TODO: After this PR is merged, uncomment this block.
+    
+    useEffect(() => {
+        const API_ENDPOINT = "http://localhost:5000/api/profile"; 
+        
+        async function fetchProfile() {
+            setIsLoading(true); 
+            try {
+                const response = await fetch(API_ENDPOINT); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+                setProfileData(data.profile || BLANK_PROFILE); 
+            } catch (error) {
+                console.error("Failed to fetch profile:", error);
+                setProfileData(BLANK_PROFILE); // Fallback to blank profile on error
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchProfile();
+    }, []); // Empty array means "run once"
+    */
+
+    // --- TEMPORARY: Simulate loading the blank profile ---
+    useEffect(() => {
+        setProfileData(BLANK_PROFILE);
+        setIsLoading(false);
+    }, []);
+    // --- END TEMPORARY ---
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -24,10 +63,19 @@ export default function ProfileEditor() {
 
     const handleSave = (e) => {
         e.preventDefault();
+        // NOTE: This is where you would call your (POST/PUT) backend API.
         console.log("Profile Data Saved:", profileData);
-        alert("Profile Updated Locally! (Check console for data)");
-        // NOTE: In the future, this is where you would call your backend API.
+        // REMOVED: alert("Profile Updated Locally! (Check console for data)");
     };
+
+    // Show loading spinner while profile is fetched
+    if (isLoading || !profileData) {
+        return (
+            <div className="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-2xl flex justify-center items-center h-64">
+                <p className="text-gray-500">Loading profile editor...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-2xl">

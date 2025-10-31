@@ -1,18 +1,58 @@
 // DatingApp/frontend/src/app/dashboard/user/settings/page.jsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sliders, Bell, User, XCircle } from 'lucide-react'; // Icons for visual appeal
 
+// Default values for a new user, or if loading fails
+const DEFAULT_SETTINGS = {
+    maxDistance: 50,
+    minAge: 20,
+    maxAge: 35,
+    showMe: true,
+    newMatchNotify: true,
+};
+
 export default function SettingsPage() {
-    // State to manage settings values
-    const [settings, setSettings] = useState({
-        maxDistance: 50,
-        minAge: 20,
-        maxAge: 35,
-        showMe: true,
-        newMatchNotify: true,
-    });
+    // State to manage settings values, initialized to null
+    const [settings, setSettings] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // --- API FETCH LOGIC (SAVED FOR LATER) ---
+    /*
+    // TODO: After this PR is merged, uncomment this block.
+    
+    useEffect(() => {
+        const API_ENDPOINT = "http://localhost:5000/api/settings"; 
+        
+        async function fetchSettings() {
+            setIsLoading(true); 
+            try {
+                const response = await fetch(API_ENDPOINT); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+                setSettings(data.settings || DEFAULT_SETTINGS); 
+            } catch (error) {
+                console.error("Failed to fetch settings:", error);
+                setSettings(DEFAULT_SETTINGS); // Fallback to defaults on error
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchSettings();
+    }, []); // Empty array means "run once"
+    */
+
+    // --- TEMPORARY: Simulate loading settings (since fetch is commented) ---
+    // We will set the settings to the defaults so the page is usable.
+    useEffect(() => {
+        setSettings(DEFAULT_SETTINGS);
+        setIsLoading(false);
+    }, []);
+    // --- END TEMPORARY ---
+
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -24,16 +64,27 @@ export default function SettingsPage() {
 
     const handleSave = (e) => {
         e.preventDefault();
+        // This is where the API call (POST/PUT) would go
         console.log("Settings Saved:", settings);
-        alert("Settings Saved Locally! (This is where the API call would go)");
+        // REMOVED: alert("Settings Saved Locally!");
     };
 
     const deleteAccount = () => {
-        if (confirm("Are you sure you want to permanently delete your account? This cannot be undone.")) {
-            alert("Account Deletion Simulated.");
-            // NOTE: This would be a crucial API call in a real app
-        }
+        // REMOVED: if (confirm("Are you sure..."))
+        // A real app would use a custom modal pop-up here.
+        // For API-ready prep, we just log to console.
+        console.warn("Account Deletion Clicked. API call would go here.");
+        // REMOVED: alert("Account Deletion Simulated.");
     };
+
+    // Show loading spinner while settings are fetched
+    if (isLoading || !settings) {
+        return (
+            <div className="p-8 h-full bg-gray-50 flex justify-center items-center">
+                <p className="text-gray-500">Loading settings...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 h-full bg-gray-50">
@@ -67,11 +118,9 @@ export default function SettingsPage() {
                             Age Range: <span className="text-pink-600 font-bold">{settings.minAge} - {settings.maxAge}</span>
                         </label>
                         <div className="flex space-x-4">
-                            {/* FIX 1: Max attribute uses Number() */}
                             <input type="number" name="minAge" value={settings.minAge} onChange={handleChange} min="18" max={Number(settings.maxAge)}
                                 className="p-3 border rounded-lg w-1/2 focus:ring-pink-500 focus:border-pink-500"
                             />
-                            {/* FIX 2: Min attribute uses Number() */}
                             <input type="number" name="maxAge" value={settings.maxAge} onChange={handleChange} min={Number(settings.minAge)} max="99"
                                 className="p-3 border rounded-lg w-1/2 focus:ring-pink-500 focus:border-pink-500"
                             />

@@ -7,19 +7,7 @@ import ProfileEditor from '@/components/ProfileEditor';
 import PhotoGallery from '@/components/PhotoGallery';
 import Image from 'next/image';
 
-// Dummy Data to simulate the current user's profile for the PhotoGallery
-// NOTE: This uses 'via.placeholder.com' which we whitelisted earlier!
-const DUMMY_USER_PROFILE = {
-    name: "Jane Doe",
-    mainPhoto: "https://via.placeholder.com/600x480/cccccc/333333?text=Jane+Main+Photo",
-    extraPhotos: [
-        "https://via.placeholder.com/300x300?text=Jane-2",
-        "https://via.placeholder.com/300x300?text=Jane-3",
-        "https://via.placeholder.com/300x300?text=Jane-4",
-        "https://via.placeholder.com/300x300?text=Jane-5"
-    ]
-};
-
+// NOTE: DUMMY_USER_PROFILE data has been removed to prepare for API integration.
 
 export default function ProfilePage() {
     return (
@@ -33,8 +21,10 @@ export default function ProfilePage() {
                 <div className="lg:col-span-4">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">Your Photos</h2>
 
-                    {/* PhotoGallery Component */}
-                    <PhotoGallery profile={DUMMY_USER_PROFILE} isEditing={true} />
+                    {/* PhotoGallery Component - The 'profile' prop is removed as it 
+                        will eventually be passed down from a parent component 
+                        fetching the real data, or the editor itself will manage the state. */}
+                    <PhotoGallery isEditing={true} />
 
                     {/* Tip Box */}
                     <div className="mt-6 p-4 bg-white rounded-xl shadow-lg border border-gray-200">

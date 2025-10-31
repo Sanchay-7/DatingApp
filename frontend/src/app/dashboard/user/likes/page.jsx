@@ -1,10 +1,11 @@
-// app/likes/page.jsx (New Design)
+// app/dashboard/user/likes/page.jsx (API-Ready)
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image'; // We will use the Image component
 
 // New, upgraded LikedUserCard component
+// This component is perfect and needs no changes.
 const LikedUserCard = ({ name, age, imageUrl, isNew }) => (
     <div className="relative w-full h-64 rounded-xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105">
         {/* Background Image */}
@@ -14,6 +15,8 @@ const LikedUserCard = ({ name, age, imageUrl, isNew }) => (
             fill={true}
             style={{ objectFit: 'cover' }}
             className="rounded-xl"
+            // Add a simple error handler for broken images
+            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Image+Missing'; }}
         />
 
         {/* Gradient Overlay for text */}
@@ -36,11 +39,57 @@ const LikedUserCard = ({ name, age, imageUrl, isNew }) => (
 
 
 export default function LikesYouPage() {
+    // State to hold the list of users who liked you
+    const [likedUsers, setLikedUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Calculate new likes count dynamically
+    const newLikesCount = likedUsers.filter(user => user.isNew).length;
+
+    // --- API FETCH LOGIC (SAVED FOR LATER) ---
+    /*
+    // TODO: After this PR is merged, uncomment this block.
+    
+    useEffect(() => {
+        const API_ENDPOINT = "http://localhost:5000/api/likes"; 
+        
+        async function fetchLikes() {
+            setIsLoading(true); 
+            try {
+                const response = await fetch(API_ENDPOINT); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+                setLikedUsers(data.likes || data); 
+            } catch (error) {
+                console.error("Failed to fetch likes:", error);
+                setLikedUsers([]); 
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchLikes();
+    }, []); // Empty array means "run once"
+    */
+
+    // --- TEMPORARY: Simulate loading complete (since fetch is commented) ---
+    // We will set loading to false so we can see the "No new likes" message
+    // instead of an infinite "Loading..." screen.
+    useEffect(() => {
+        setIsLoading(false);
+    }, []);
+    // --- END TEMPORARY ---
+
+
     return (
         <div className="p-8 h-full">
             <h1 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
                 Who Likes You <span className="text-pink-500 ml-3">💖</span>
-                <span className="ml-3 text-lg font-normal text-pink-500">(5 New Likes)</span>
+                {/* This is now dynamic based on the API data */}
+                {newLikesCount > 0 && (
+                    <span className="ml-3 text-lg font-normal text-pink-500">({newLikesCount} New Likes)</span>
+                )}
             </h1>
 
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
@@ -48,48 +97,26 @@ export default function LikesYouPage() {
                     These users have liked your profile. Click to view their profile and match instantly!
                 </p>
 
-                {/* User Grid: Will dynamically map data from the backend */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-
-                    {/* Example Cards (using new design) */}
-                    <LikedUserCard
-                        name="Priya"
-                        age={27}
-                        imageUrl="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=2788&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={true}
-                    />
-                    <LikedUserCard
-                        name="Alex"
-                        age={30}
-                        imageUrl="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=2874&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={true}
-                    />
-                    <LikedUserCard
-                        name="Sam"
-                        age={25}
-                        imageUrl="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=2787&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={true}
-                    />
-                    <LikedUserCard
-                        name="Jane"
-                        age={29}
-                        imageUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=2864&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={true}
-                    />
-                    <LikedUserCard
-                        name="Mike"
-                        age={32}
-                        imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=2787&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={true}
-                    />
-                    <LikedUserCard
-                        name="Chris"
-                        age={28}
-                        imageUrl="https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&q=80&w=2823&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                        isNew={false}
-                    />
-
-                </div>
+                {/* --- DYNAMIC USER GRID --- */}
+                {isLoading ? (
+                    <p className="text-center text-gray-500">Loading new likes...</p>
+                ) : likedUsers.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                        {/* Map over data from the API */}
+                        {likedUsers.map(user => (
+                            <LikedUserCard
+                                key={user.id}
+                                name={user.name}
+                                age={user.age}
+                                imageUrl={user.imageUrl}
+                                isNew={user.isNew}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center text-gray-500">You have no new likes right now.</p>
+                )}
+                {/* --- END DYNAMIC GRID --- */}
 
             </div>
         </div>
