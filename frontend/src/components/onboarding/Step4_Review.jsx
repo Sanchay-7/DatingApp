@@ -42,6 +42,14 @@ const Step4_Review = ({ formData }) => {
                         <li><span className="font-semibold text-gray-400">Name:</span> <span className="text-white">{formData.name || 'N/A'}</span></li>
                         <li><span className="font-semibold text-gray-400">Birthday:</span> <span className="text-white">{dateDisplay}</span></li>
                         <li><span className="font-semibold text-gray-400">Gender:</span> <span className="text-white">{formData.gender || 'N/A'}</span></li>
+
+                        {/* --- NEW FIELDS ADDED HERE --- */}
+                        <li><span className="font-semibold text-gray-400">Work:</span> <span className="text-white">{formData.work || 'N/A'}</span></li>
+                        <li><span className="font-semibold text-gray-400">Height:</span> <span className="text-white">{formData.height || 'N/A'}</span></li>
+                        <li><span className="font-semibold text-gray-400">Current Location:</span> <span className="text-white">{formData.currentLocation || 'N/A'}</span></li>
+                        <li><span className="font-semibold text-gray-400">Hometown:</span> <span className="text-white">{formData.hometown || 'N/A'}</span></li>
+                        {/* --- END OF NEW FIELDS --- */}
+
                     </ul>
                 </div>
 

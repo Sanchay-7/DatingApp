@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 
 import Step1_Photos from './Step1_Photos';
-import Step2_Details from './Step2_Details'; // <-- THIS IS THE CORRECTED LINE
+import Step2_Details from './Step2_Details';
 import Step3_Preferences from './Step3_Preferences';
 import Step4_Review from './Step4_Review';
 
@@ -27,29 +27,74 @@ const ProfileCreationForm = () => {
             interests: []
         },
         location: '',
-        // ... other future fields
+        hometown: '',
+        currentLocation: '',
+        height: '',
+        work: '',
     });
 
     const updateFormData = (newData) => {
         setFormData(newData);
     };
 
-    // --- VALIDATION LOGIC ---
+    // --- Helper function to check if the user is 18 or older ---
+    const is18OrOlder = (birthday) => {
+        const { day, month, year } = birthday;
+        if (!day || !month || !year || year.length !== 4) {
+            return false; // Not a full date, so not valid yet
+        }
+
+        // Create date object for user's birthday
+        // Note: Months are 0-indexed in JS (0=Jan, 1=Feb, etc.)
+        const birthDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+
+        // Create date object for 18 years ago from today
+        const today = new Date();
+        const cutoffDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+
+        // User is 18 or older if their birthday is on or before the cutoff date
+        return birthDate <= cutoffDate;
+    };
+
+    // --- NEW: Memoized value for the age error message ---
+    // This calculates the error message, which we will pass to Step2_Details
+    const ageValidationError = useMemo(() => {
+        const { birthday } = formData;
+        const { day, month, year } = birthday;
+
+        // Only check if all fields are filled and year is 4 digits
+        if (day && month && year && year.length === 4) {
+            if (!is18OrOlder(birthday)) {
+                // If they are not 18, return the error message
+                return "You must be 18 or older to register.";
+            }
+        }
+        // Otherwise, return null (no error)
+        return null;
+    }, [formData.birthday]); // This re-runs only when the birthday state changes
+    // --- END OF NEW MEMO ---
+
+
+    // --- VALIDATION LOGIC (MODIFIED) ---
     const isStepValid = useMemo(() => {
         switch (currentStep) {
             case 1:
                 // Must have at least 2 photos
                 return formData.photos.length >= 2;
             case 2:
-                // Must have name, all parts of birthday, and gender selected
+                // MODIFIED: Now checks for age error
                 const { birthday } = formData;
-                return (
+                // Check if basic fields are filled
+                const basicDetailsValid = (
                     formData.name.trim() !== '' &&
                     birthday.day.length > 0 &&
                     birthday.month.length > 0 &&
                     birthday.year.length === 4 &&
                     formData.gender !== ''
                 );
+
+                // Must have basic details AND no age error
+                return basicDetailsValid && ageValidationError === null;
             case 3:
                 // Must select what they are interested in and looking for
                 return (
@@ -62,7 +107,7 @@ const ProfileCreationForm = () => {
             default:
                 return false;
         }
-    }, [currentStep, formData]);
+    }, [currentStep, formData, ageValidationError]); // Added ageValidationError as a dependency
 
 
     // Function to move to the next step
@@ -90,7 +135,7 @@ const ProfileCreationForm = () => {
         // After a successful API call, you would redirect the user to the main dashboard.
     };
 
-    // --- RENDERING LOGIC ---
+    // --- RENDERING LOGIC (MODIFIED) ---
     const renderStep = () => {
 
         switch (currentStep) {
@@ -106,6 +151,9 @@ const ProfileCreationForm = () => {
                     <Step2_Details
                         formData={formData}
                         updateFormData={updateFormData}
+                        // --- PROP ADDED ---
+                        // We are passing the error message down to the child component
+                        ageValidationError={ageValidationError}
                     />
                 );
             case 3:
@@ -168,7 +216,7 @@ const ProfileCreationForm = () => {
                 {currentStep < MAX_STEPS ? (
                     <button
                         onClick={nextStep}
-                        disabled={!isStepValid} // Disabled if the step requirements are not met
+                        disabled={!isStepValid} // This button is now disabled if user is under 18
                         className={`px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-colors duration-200 ${isStepValid
                             ? 'bg-white text-black hover:bg-gray-200'
                             : 'bg-gray-800 text-gray-500 cursor-not-allowed'

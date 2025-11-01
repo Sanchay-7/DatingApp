@@ -1,8 +1,9 @@
-// components/onboarding/Step2_Details.jsx (Final Clean Code)
+// components/onboarding/Step2_Details.jsx (Final Corrected Code)
 
 import React from 'react';
 
-const Step2_Details = ({ formData, updateFormData }) => {
+// --- PROP ADDED: 'ageValidationError' ---
+const Step2_Details = ({ formData, updateFormData, ageValidationError }) => {
 
     // Local state for the gender toggle
     const [showGender, setShowGender] = React.useState(false);
@@ -111,6 +112,18 @@ const Step2_Details = ({ formData, updateFormData }) => {
                             />
                         ))}
                     </div>
+
+                    {/* --- NEW ERROR MESSAGE DISPLAY --- */}
+                    {/* This div will only appear if there is an age error */}
+                    {ageValidationError && (
+                        <div className="pt-2">
+                            <p className="text-red-500 text-sm font-semibold">
+                                {ageValidationError}
+                            </p>
+                        </div>
+                    )}
+                    {/* --- END OF ERROR MESSAGE --- */}
+
                 </div>
 
                 {/* 4. Gender Selection */}
@@ -156,6 +169,70 @@ const Step2_Details = ({ formData, updateFormData }) => {
                     </div>
                 </div>
 
+                {/* --- START OF NEW FIELDS --- */}
+
+                <div className="pt-8 border-t border-gray-800 space-y-8">
+                    <h3 className="text-3xl font-bold">More About You</h3>
+                    <p className="text-gray-400">Add extra details to give your profile some personality.</p>
+
+                    {/* Hometown */}
+                    <div className="space-y-2">
+                        <label htmlFor="hometown" className="block text-white text-lg font-semibold">Hometown</label>
+                        <input
+                            type="text"
+                            id="hometown"
+                            name="hometown"
+                            value={formData.hometown || ''}
+                            onChange={handleChange}
+                            placeholder="e.g., Mumbai"
+                            className="w-full bg-gray-900 border border-gray-700 text-white p-3 rounded-lg focus:border-white focus:ring-0 placeholder:text-gray-500"
+                        />
+                    </div>
+
+                    {/* Current Location */}
+                    <div className="space-y-2">
+                        <label htmlFor="currentLocation" className="block text-white text-lg font-semibold">Current Location</label>
+                        <input
+                            type="text"
+                            id="currentLocation"
+                            name="currentLocation"
+                            value={formData.currentLocation || ''}
+                            onChange={handleChange}
+                            placeholder="e.g., Bengaluru"
+                            className="w-full bg-gray-900 border border-gray-700 text-white p-3 rounded-lg focus:border-white focus:ring-0 placeholder:text-gray-500"
+                        />
+                    </div>
+
+                    {/* Height */}
+                    <div className="space-y-2">
+                        <label htmlFor="height" className="block text-white text-lg font-semibold">Height</label>
+                        <input
+                            type="text"
+                            id="height"
+                            name="height"
+                            value={formData.height || ''}
+                            onChange={handleChange}
+                            placeholder="e.g., 5' 11&quot; or 180 cm"
+                            className="w-full bg-gray-900 border border-gray-700 text-white p-3 rounded-lg focus:border-white focus:ring-0 placeholder:text-gray-500"
+                        />
+                    </div>
+
+                    {/* Work */}
+                    <div className="space-y-2">
+                        <label htmlFor="work" className="block text-white text-lg font-semibold">What do you do? (Work)</label>
+                        <input
+                            type="text"
+                            id="work"
+                            name="work"
+                            value={formData.work || ''}
+                            onChange={handleChange}
+                            placeholder="e.g., Software Engineer"
+                            className="w-full bg-gray-900 border border-gray-700 text-white p-3 rounded-lg focus:border-white focus:ring-0 placeholder:text-gray-500"
+                        />
+                    </div>
+                </div>
+                {/* --- END OF NEW FIELDS --- */}
+
             </section>
 
             {/* RIGHT COLUMN: Live Preview */}
@@ -181,9 +258,38 @@ const Step2_Details = ({ formData, updateFormData }) => {
                     </p>
 
                     {/* Gender (Conditional Display based on switch state) */}
-                    <p className="text-lg text-gray-400">
+                    <p className="text-lg text-gray-400 mb-4">
                         {showGender ? formData.gender || 'Select Gender' : 'Gender Hidden'}
                     </p>
+
+                    {/* --- NEW PREVIEW FIELDS ADDED --- */}
+                    <div className="space-y-2 text-sm text-gray-300">
+                        {formData.work && (
+                            <div className="flex items-center">
+                                <span className="w-6">💼</span>
+                                <span>{formData.work}</span>
+                            </div>
+                        )}
+                        {formData.currentLocation && (
+                            <div className="flex items-center">
+                                <span className="w-6">📍</span>
+                                <span>Lives in {formData.currentLocation}</span>
+                            </div>
+                        )}
+                        {formData.hometown && (
+                            <div className="flex items-center">
+                                <span className="w-6">🏠</span>
+                                <span>From {formData.hometown}</span>
+                            </div>
+                        )}
+                        {formData.height && (
+                            <div className="flex items-center">
+                                <span className="w-6">📏</span>
+                                <span>{formData.height}</span>
+                            </div>
+                        )}
+                    </div>
+                    {/* --- END OF NEW PREVIEW FIELDS --- */}
 
                     <p className="mt-4 text-sm text-gray-500">
                         This is how your basic information will appear to others.
