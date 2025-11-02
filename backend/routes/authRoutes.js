@@ -1,14 +1,12 @@
 import express from "express";
-import { signup , verifyOTP , login} from "../controllers/authController.js";
-import upload from "../middleware/upload.js";
+import { signup, login } from "../controllers/authController.js";
 
 const router = express.Router();
 
-// Signup route
-// router.post("/signup", signup);
-router.post("/signup", upload.single("profileImage"), signup);
-router.post("/verify-otp", verifyOTP);
-router.post("/login", login);
+// ✅ Signup (Firebase OTP verified on backend)
+router.post("/signup", signup);
 
+// ✅ Login (email/phone + password)
+router.post("/login", login);
 
 export default router;
