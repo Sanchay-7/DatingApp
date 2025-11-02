@@ -6,7 +6,12 @@ import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // ✅ Next.js frontend
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get("/", async (req, res) => {
