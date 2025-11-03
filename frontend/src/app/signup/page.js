@@ -89,7 +89,7 @@ export default function SignUp() {
       const data = await res.json();
       if (res.ok) {
         alert("✅ Account created!");
-        router.push("/signin");
+        router.push("/profile-setup");
       } else {
         alert("❌ " + data.error);
       }
@@ -100,6 +100,18 @@ export default function SignUp() {
   };
 
   return (
+    <><header className="flex items-center justify-between px-6 py-5 max-w-7xl mx-auto">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-md bg-pink-500 flex items-center justify-center text-white font-bold">V</div>
+      <span className="text-lg font-bold">Valise Dating</span>
+    </div>
+    <nav className="hidden md:flex items-center gap-6">
+    <Link href="/signup" className="px-6 py-3 border border-pink-600 text-pink-600 rounded-full hover:bg-pink-50">
+      Sign In
+    </Link>
+
+    </nav>
+  </header>
     <main className="min-h-screen flex items-center justify-center bg-blue-50">
       <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md relative">
         {/* Recaptcha container */}
@@ -196,5 +208,6 @@ export default function SignUp() {
         </div>
       </div>
     </main>
+    </>
   );
 }

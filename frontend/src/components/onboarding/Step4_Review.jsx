@@ -1,84 +1,72 @@
-// components/onboarding/Step4_Review.jsx
-
-import React from 'react';
+// components/onboarding/Step4_Review.jsx — Light Theme
+import React from "react";
 
 const Step4_Review = ({ formData }) => {
-    // Helper to safely get nested preference data
-    const preferences = formData.preferences || {};
-    const birthday = formData.birthday || {};
+  const prefs = formData.preferences || {};
+  const b = formData.birthday || {};
+  const dateDisplay = b.day && b.month && b.year ? `${b.month}/${b.day}/${b.year}` : "Not set";
 
-    // Convert basic birthday data to a display string (simplified)
-    const dateDisplay = (birthday.day && birthday.month && birthday.year)
-        ? `${birthday.month}/${birthday.day}/${birthday.year}`
-        : 'Not set';
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 max-w-6xl w-full">
+      {/* LEFT */}
+      <section className="col-span-1 space-y-8">
+        <h2 className="text-3xl md:text-4xl font-extrabold mb-1 text-black">Review and Launch!</h2>
+        <p className="text-gray-700">Check your details. Click “Finish” to start connecting.</p>
 
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 max-w-6xl w-full">
-
-            {/* LEFT COLUMN: Main Review */}
-            <section className="col-span-1 space-y-8">
-                <h2 className="text-4xl font-bold mb-4">Review and Launch!</h2>
-                <p className="text-gray-400">Take a moment to review your details. Click 'Finish' when you're ready to start connecting!</p>
-
-                {/* 1. Photos Review */}
-                <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Photos ({formData.photos.length} uploaded)</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {formData.photos.map((photo, index) => (
-                            <div
-                                key={index}
-                                className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center text-xs text-white"
-                            >
-                                P{index + 1}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 2. Basic Details Review */}
-                <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Basic Information</h3>
-                    <ul className="text-gray-300 space-y-1">
-                        <li><span className="font-semibold text-gray-400">Name:</span> <span className="text-white">{formData.name || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Birthday:</span> <span className="text-white">{dateDisplay}</span></li>
-                        <li><span className="font-semibold text-gray-400">Gender:</span> <span className="text-white">{formData.gender || 'N/A'}</span></li>
-
-                        {/* --- NEW FIELDS ADDED HERE --- */}
-                        <li><span className="font-semibold text-gray-400">Work:</span> <span className="text-white">{formData.work || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Height:</span> <span className="text-white">{formData.height || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Current Location:</span> <span className="text-white">{formData.currentLocation || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Hometown:</span> <span className="text-white">{formData.hometown || 'N/A'}</span></li>
-                        {/* --- END OF NEW FIELDS --- */}
-
-                    </ul>
-                </div>
-
-                {/* 3. Preferences Review */}
-                <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Matching Preferences</h3>
-                    <ul className="text-gray-300 space-y-1">
-                        <li><span className="font-semibold text-gray-400">Interested In:</span> <span className="text-white">{preferences.interestedIn?.join(', ') || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Looking For:</span> <span className="text-white">{preferences.relationshipIntent || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Orientation:</span> <span className="text-white">{preferences.sexualOrientation || 'N/A'}</span></li>
-                        <li><span className="font-semibold text-gray-400">Interests:</span> <span className="text-white">{preferences.interests?.join(', ') || 'None Selected'}</span></li>
-                    </ul>
-                </div>
-            </section>
-
-            {/* RIGHT COLUMN: Final Confirmation */}
-            <aside className="col-span-1 hidden md:block border-l border-gray-800 pl-8 pt-2">
-                <h3 className="text-xl font-semibold mb-4 text-white">Final Step</h3>
-                <div className="p-6 bg-gray-900 rounded-lg border border-gray-800">
-                    <p className="text-gray-400 mb-4">
-                        By clicking 'Finish', you agree to our terms of service and certify that the information provided is accurate.
-                    </p>
-                    <p className="text-lg font-bold text-white">
-                        Ready to find your match?
-                    </p>
-                </div>
-            </aside>
+        {/* Photos */}
+        <div className="space-y-3">
+          <h3 className="text-xl font-bold text-black border-b border-pink-100 pb-2">
+            Photos ({formData.photos.length} uploaded)
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {formData.photos.map((_, i) => (
+              <div key={i} className="w-16 h-16 bg-gray-100 border border-gray-200 rounded-lg grid place-items-center text-xs text-gray-700">
+                P{i + 1}
+              </div>
+            ))}
+          </div>
         </div>
-    );
+
+        {/* Basic Info */}
+        <div className="space-y-3">
+          <h3 className="text-xl font-bold text-black border-b border-pink-100 pb-2">Basic Information</h3>
+          <ul className="text-gray-800 space-y-1">
+            <li><span className="font-semibold text-gray-600">Name:</span> <span className="text-black">{formData.name || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Birthday:</span> <span className="text-black">{dateDisplay}</span></li>
+            <li><span className="font-semibold text-gray-600">Gender:</span> <span className="text-black">{formData.gender || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Work:</span> <span className="text-black">{formData.work || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Height:</span> <span className="text-black">{formData.height || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Current Location:</span> <span className="text-black">{formData.currentLocation || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Hometown:</span> <span className="text-black">{formData.hometown || "N/A"}</span></li>
+          </ul>
+        </div>
+
+        {/* Preferences */}
+        <div className="space-y-3">
+          <h3 className="text-xl font-bold text-black border-b border-pink-100 pb-2">Matching Preferences</h3>
+          <ul className="text-gray-800 space-y-1">
+            <li><span className="font-semibold text-gray-600">Interested In:</span> <span className="text-black">{prefs.interestedIn?.join(", ") || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Looking For:</span> <span className="text-black">{prefs.relationshipIntent || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Orientation:</span> <span className="text-black">{prefs.sexualOrientation || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Interests:</span> <span className="text-black">{prefs.interests?.join(", ") || "None Selected"}</span></li>
+          </ul>
+        </div>
+      </section>
+
+      {/* RIGHT */}
+      <aside className="col-span-1 hidden md:block pl-8 pt-2 border-l border-pink-100">
+        <div className="p-6 rounded-2xl bg-yellow-50 border border-yellow-200">
+          <h3 className="text-xl font-bold mb-3 text-black">Final Step</h3>
+          <div className="rounded-xl bg-white border border-gray-200 p-5 shadow-sm">
+            <p className="text-gray-700 mb-4">
+              By clicking “Finish”, you agree to our terms and confirm your details are accurate.
+            </p>
+            <p className="text-lg font-bold text-black">Ready to find your match?</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
 };
 
 export default Step4_Review;

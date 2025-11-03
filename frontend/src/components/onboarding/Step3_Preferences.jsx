@@ -1,193 +1,138 @@
-// components/onboarding/Step3_Preferences.jsx
+// components/onboarding/Step3_Preferences.jsx — Light Theme
+import React from "react";
 
-import React from 'react';
-
-const availableInterests = ['Hiking', 'Cooking', 'Photography', 'Travel', 'Movies', 'Gaming', 'Reading'];
+const availableInterests = ["Hiking","Cooking","Photography","Travel","Movies","Gaming","Reading"];
 
 const Step3_Preferences = ({ formData, updateFormData }) => {
+  React.useEffect(() => {
+    if (!formData.preferences) {
+      updateFormData({
+        ...formData,
+        preferences: {
+          interestedIn: [],
+          relationshipIntent: "",
+          sexualOrientation: "",
+          interests: [],
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // Initialize preferences structure if it doesn't exist
-    React.useEffect(() => {
-        if (!formData.preferences) {
-            updateFormData({
-                ...formData,
-                preferences: {
-                    interestedIn: formData.preferences?.interestedIn || [],
-                    relationshipIntent: formData.preferences?.relationshipIntent || '',
-                    sexualOrientation: formData.preferences?.sexualOrientation || '',
-                    interests: formData.preferences?.interests || []
-                }
-            });
-        }
-    }, []);
+  const handlePreferenceSelect = (key, value) => {
+    const cur = formData.preferences[key];
+    let next;
+    if (key === "interestedIn") {
+      if (cur.includes("Everyone")) next = [value];
+      else if (value === "Everyone") next = ["Everyone"];
+      else if (cur.includes(value)) next = cur.filter((v) => v !== value);
+      else next = [...cur, value].filter((v) => v !== "Everyone");
+    } else {
+      next = cur === value ? "" : value;
+    }
+    updateFormData({ ...formData, preferences: { ...formData.preferences, [key]: next } });
+  };
 
+  const handleInterestToggle = (interest) => {
+    const cur = formData.preferences.interests || [];
+    const next = cur.includes(interest) ? cur.filter((i) => i !== interest) : [...cur, interest];
+    updateFormData({ ...formData, preferences: { ...formData.preferences, interests: next } });
+  };
 
-    // Handles selection buttons (e.g., Interested In)
-    const handlePreferenceSelect = (key, value) => {
-        const currentValue = formData.preferences[key];
-        let newValue;
+  const chipClass = (key, value) => {
+    const selected = Array.isArray(formData.preferences[key])
+      ? formData.preferences[key].includes(value)
+      : formData.preferences[key] === value;
+    return `px-4 py-2 rounded-full font-semibold transition-colors border ${
+      selected ? "bg-pink-600 text-white border-pink-600" : "bg-white text-pink-600 border-pink-600 hover:bg-pink-50"
+    }`;
+  };
 
-        // Logic for 'Interested In' (can select multiple)
-        if (key === 'interestedIn') {
-            if (currentValue.includes('Everyone')) {
-                // If 'Everyone' is selected, clear and start fresh
-                newValue = [value];
-            } else if (value === 'Everyone') {
-                // Selecting 'Everyone' clears other selections
-                newValue = ['Everyone'];
-            } else if (currentValue.includes(value)) {
-                // Toggle off
-                newValue = currentValue.filter(v => v !== value);
-            } else {
-                // Toggle on
-                newValue = [...currentValue, value].filter(v => v !== 'Everyone'); // Remove 'Everyone' if specific genders are added
-            }
-        } else {
-            // Logic for single selection (e.g., Relationship Intent, Sexual Orientation)
-            newValue = currentValue === value ? '' : value; // Toggle behaviour
-        }
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 max-w-6xl w-full">
+      {/* LEFT */}
+      <section className="col-span-1 space-y-10">
+        <h2 className="text-3xl md:text-4xl font-extrabold mb-1 text-black">Your Matching Preferences</h2>
+        <p className="text-gray-700">Tell us what you're looking for so we can suggest compatible connections.</p>
 
-        updateFormData({
-            ...formData,
-            preferences: {
-                ...formData.preferences,
-                [key]: newValue
-            }
-        });
-    };
-
-    // Handles adding/removing interests (simplified tag toggle)
-    const handleInterestToggle = (interest) => {
-        const currentInterests = formData.preferences.interests || [];
-        let newInterests;
-
-        if (currentInterests.includes(interest)) {
-            newInterests = currentInterests.filter(i => i !== interest);
-        } else {
-            newInterests = [...currentInterests, interest];
-        }
-
-        updateFormData({
-            ...formData,
-            preferences: {
-                ...formData.preferences,
-                interests: newInterests
-            }
-        });
-    };
-
-
-    // Tailwind class helper for selected buttons
-    const buttonClass = (key, value) => {
-        const isSelected = Array.isArray(formData.preferences[key])
-            ? formData.preferences[key].includes(value)
-            : formData.preferences[key] === value;
-
-        return `px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${isSelected
-                ? 'bg-white text-black' // Selected style
-                : 'bg-gray-800 text-white hover:bg-gray-700' // Unselected style
-            }`;
-    };
-
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 max-w-6xl w-full">
-
-            {/* LEFT COLUMN: Input Forms */}
-            <section className="col-span-1 space-y-10">
-                <h2 className="text-4xl font-bold mb-4">Your Matching Preferences</h2>
-                <p className="text-gray-400">Tell us what you're looking for to help us suggest compatible connections.</p>
-
-                {/* 1. Interested In (Multiple Selection) */}
-                <div className="space-y-4">
-                    <label className="block text-white text-lg font-semibold">I'm interested in:</label>
-                    <div className="flex space-x-3">
-                        {['Men', 'Women', 'Everyone'].map(value => (
-                            <button
-                                key={value}
-                                onClick={() => handlePreferenceSelect('interestedIn', value)}
-                                className={buttonClass('interestedIn', value)}
-                            >
-                                {value}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 2. Relationship Intent (Single Selection) */}
-                <div className="space-y-4">
-                    <label className="block text-white text-lg font-semibold">I'm looking for:</label>
-                    <div className="flex space-x-3">
-                        {['Long-term', 'Casual', 'Friendship'].map(value => (
-                            <button
-                                key={value}
-                                onClick={() => handlePreferenceSelect('relationshipIntent', value)}
-                                className={buttonClass('relationshipIntent', value)}
-                            >
-                                {value}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 3. Sexual Orientation (Single Selection) */}
-                <div className="space-y-4">
-                    <label className="block text-white text-lg font-semibold">Sexual Orientation</label>
-                    <div className="flex space-x-3 flex-wrap gap-y-2">
-                        {['Straight', 'Gay', 'Bisexual', 'Other'].map(value => (
-                            <button
-                                key={value}
-                                onClick={() => handlePreferenceSelect('sexualOrientation', value)}
-                                className={buttonClass('sexualOrientation', value)}
-                            >
-                                {value}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 4. Interests/Hobbies (Tag Selection) */}
-                <div className="space-y-4">
-                    <label className="block text-white text-lg font-semibold">My Top Interests</label>
-                    <div className="flex space-x-3 flex-wrap gap-y-2">
-                        {availableInterests.map(interest => {
-                            const isSelected = formData.preferences?.interests?.includes(interest);
-                            return (
-                                <button
-                                    key={interest}
-                                    onClick={() => handleInterestToggle(interest)}
-                                    className={`px-3 py-1 text-sm rounded-full transition-colors duration-200 border ${isSelected
-                                            ? 'bg-white text-black border-white'
-                                            : 'bg-transparent text-gray-400 border-gray-700 hover:border-white'
-                                        }`}
-                                >
-                                    {interest}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-            </section>
-
-            {/* RIGHT COLUMN: Contextual Tips */}
-            <aside className="col-span-1 hidden md:block border-l border-gray-800 pl-8 pt-2">
-                <h3 className="text-xl font-semibold mb-4 text-white">Matching Insight</h3>
-                <p className="text-gray-400 mb-6">
-                    Setting detailed preferences means fewer swipes and more meaningful connections. Be honest about what you want!
-                </p>
-
-                {/* Summary Preview */}
-                <div className="p-6 bg-gray-900 rounded-lg border border-gray-800 space-y-3 text-gray-300">
-                    <p className="font-semibold">Looking For:</p>
-                    <ul className="text-sm space-y-1 text-gray-400">
-                        <li>Gender: <span className="text-white">{formData.preferences?.interestedIn?.join(', ') || 'Any'}</span></li>
-                        <li>Intent: <span className="text-white">{formData.preferences?.relationshipIntent || 'Not set'}</span></li>
-                    </ul>
-                </div>
-            </aside>
+        {/* Interested In */}
+        <div className="space-y-3">
+          <label className="block text-black text-base font-semibold">I'm interested in:</label>
+          <div className="flex flex-wrap gap-3">
+            {["Men","Women","Everyone"].map((v) => (
+              <button key={v} type="button" onClick={() => handlePreferenceSelect("interestedIn", v)} className={chipClass("interestedIn", v)}>
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
-    );
+
+        {/* Relationship Intent */}
+        <div className="space-y-3">
+          <label className="block text-black text-base font-semibold">I'm looking for:</label>
+          <div className="flex flex-wrap gap-3">
+            {["Long-term","Casual","Friendship"].map((v) => (
+              <button key={v} type="button" onClick={() => handlePreferenceSelect("relationshipIntent", v)} className={chipClass("relationshipIntent", v)}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sexual Orientation */}
+        <div className="space-y-3">
+          <label className="block text-black text-base font-semibold">Sexual Orientation</label>
+          <div className="flex flex-wrap gap-3">
+            {["Straight","Gay","Bisexual","Other"].map((v) => (
+              <button key={v} type="button" onClick={() => handlePreferenceSelect("sexualOrientation", v)} className={chipClass("sexualOrientation", v)}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Interests */}
+        <div className="space-y-3">
+          <label className="block text-black text-base font-semibold">My Top Interests</label>
+          <div className="flex flex-wrap gap-2">
+            {availableInterests.map((interest) => {
+              const selected = formData.preferences?.interests?.includes(interest);
+              return (
+                <button
+                  key={interest}
+                  type="button"
+                  onClick={() => handleInterestToggle(interest)}
+                  className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
+                    selected ? "bg-yellow-50 text-black border-pink-300" : "bg-white text-gray-700 border-gray-200 hover:bg-pink-50"
+                  }`}
+                >
+                  {interest}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* RIGHT */}
+      <aside className="col-span-1 hidden md:block pl-8 pt-2 border-l border-pink-100">
+        <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-6">
+          <h3 className="text-xl font-bold mb-3 text-black">Matching Insight</h3>
+          <p className="text-gray-700 mb-4">More detail = fewer swipes and better matches.</p>
+
+          <div className="rounded-xl bg-white border border-gray-200 p-4 shadow-sm">
+            <p className="font-semibold text-black">Looking For</p>
+            <ul className="text-sm space-y-1 text-gray-700 mt-1">
+              <li>Gender: <span className="font-medium text-black">{formData.preferences?.interestedIn?.join(", ") || "Any"}</span></li>
+              <li>Intent: <span className="font-medium text-black">{formData.preferences?.relationshipIntent || "Not set"}</span></li>
+              <li>Orientation: <span className="font-medium text-black">{formData.preferences?.sexualOrientation || "Not set"}</span></li>
+              <li>Interests: <span className="font-medium text-black">{formData.preferences?.interests?.join(", ") || "None selected"}</span></li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
 };
 
 export default Step3_Preferences;

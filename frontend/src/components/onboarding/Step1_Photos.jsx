@@ -1,125 +1,116 @@
-// components/onboarding/Step1_Photos.jsx
+// components/onboarding/Step1_Photos.jsx — Light Theme
+import React from "react";
 
-import React from 'react';
-
-// This component receives the data and update functions from the main form.
 const Step1_Photos = ({ formData, updateFormData, goToNext }) => {
-
-    // A temporary function to simulate a successful photo upload.
-    const handlePhotoUpload = (event) => {
-        // In a real application, this would trigger a file picker and an API call.
-
-        // TEMPORARY: Simulate adding a unique ID and URL for a new photo.
-        const newPhotoId = Date.now();
-        const newPhotoUrl = `/images/temp-photo-${newPhotoId}.jpg`;
-
-        // Check for max photos (6)
-        if (formData.photos.length < 6) {
-            // Use the updateFormData function (passed from the parent) to update the state
-            updateFormData({
-                ...formData,
-                photos: [...formData.photos, { id: newPhotoId, url: newPhotoUrl }]
-            });
-        } else {
-            // Using a simple alert for feedback
-            alert("Maximum 6 photos reached for this demo grid!");
-        }
-    };
-
-    // Function to remove a photo
-    const handleRemovePhoto = (idToRemove) => {
-        updateFormData({
-            ...formData,
-            photos: formData.photos.filter(p => p.id !== idToRemove)
-        });
+  const handlePhotoUpload = () => {
+    const id = Date.now();
+    const url = `/images/temp-photo-${id}.jpg`;
+    if (formData.photos.length < 6) {
+      updateFormData({
+        ...formData,
+        photos: [...formData.photos, { id, url }],
+      });
+    } else {
+      alert("Maximum 6 photos reached!");
     }
+  };
 
-    // Check if minimum requirement (2 photos) is met
-    const isNextEnabled = formData.photos.length >= 2;
+  const handleRemovePhoto = (idToRemove) => {
+    updateFormData({
+      ...formData,
+      photos: formData.photos.filter((p) => p.id !== idToRemove),
+    });
+  };
 
+  const isNextEnabled = formData.photos.length >= 2;
 
-    return (
-        // Uses the two-column layout from our template concept
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 max-w-6xl w-full">
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 max-w-6xl w-full">
+      {/* LEFT */}
+      <section className="col-span-1">
+        <h2 className="text-3xl md:text-4xl font-extrabold mb-3 text-black">
+          Showcase Your Best Self
+        </h2>
+        <p className="text-gray-700 mb-8">
+          Upload at least 2 photos to start. Add more to truly shine!
+        </p>
 
-            {/* LEFT COLUMN: Photo Upload Grid */}
-            <section className="col-span-1">
-                <h2 className="text-4xl font-bold mb-4">Showcase Your Best Self</h2>
-                <p className="text-gray-400 mb-8">Upload at least 2 photos to start. Add more to truly shine!</p>
-
-                {/* Dynamic Photo Grid (6 slots) */}
-                <div className="grid grid-cols-3 grid-rows-2 gap-4">
-                    {Array.from({ length: 6 }).map((_, index) => {
-                        const photo = formData.photos[index];
-                        const isPlaceholder = !photo;
-
-                        return (
-                            <div
-                                key={index}
-                                className={`relative w-full aspect-square rounded-lg transition-all duration-300 ${isPlaceholder
-                                    ? 'border-2 border-dashed border-gray-700 bg-gray-900 flex items-center justify-center cursor-pointer hover:border-white' // Placeholder styling
-                                    : 'border-2 border-solid border-gray-700 overflow-hidden' // Photo loaded styling
-                                    }`}
-                                // Only allow clicking on a placeholder slot to upload a photo
-                                onClick={isPlaceholder ? handlePhotoUpload : null}
-                            >
-                                {isPlaceholder ? (
-                                    // Plus icon for placeholder
-                                    <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                                ) : (
-                                    <>
-                                        {/* In a real app, you would use Next/Image for optimization */}
-                                        <div className='w-full h-full bg-gray-700 flex items-center justify-center text-sm text-white'>
-                                            Photo {index + 1}
-                                            {/* You would replace this <div> with <img src={photo.url} ... /> */}
-                                        </div>
-
-                                        {/* Remove Button */}
-                                        <button
-                                            className="absolute top-1 right-1 bg-black bg-opacity-70 text-white w-6 h-6 rounded-full text-sm leading-none hover:bg-red-600 transition"
-                                            // Stop propagation to prevent the click from being interpreted as a new upload
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemovePhoto(photo.id);
-                                            }}
-                                        >
-                                            &times;
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Status Text for Minimum Requirement */}
-                <p className={`mt-4 text-sm font-semibold ${isNextEnabled ? 'text-white' : 'text-red-400'}`}>
-                    {isNextEnabled
-                        ? `✅ Minimum 2 photos uploaded. You have ${formData.photos.length} photos.`
-                        : `❌ Please upload at least 2 photos (${Math.max(0, 2 - formData.photos.length)} more required).`}
-                </p>
-            </section>
-
-            {/* RIGHT COLUMN: Contextual Tips */}
-            <aside className="col-span-1 hidden md:block border-l border-gray-800 pl-8 pt-2">
-                <h3 className="text-xl font-semibold mb-4 text-white">Why Photos Matter</h3>
-                <p className="text-gray-400 mb-6">
-                    Your photos are the first impression. High-quality images increase your profile's visibility and potential matches significantly.
-                </p>
-                <ul className="space-y-3 text-gray-400">
-                    <li className="flex items-start">
-                        <span className="text-white mr-2">📸</span> Use clear, recent photos.
-                    </li>
-                    <li className="flex items-start">
-                        <span className="text-white mr-2">🚫</span> Avoid filters or blurry group shots.
-                    </li>
-                    <li className="flex items-start">
-                        <span className="text-white mr-2">😊</span> Include one photo with a smile!
-                    </li>
-                </ul>
-            </aside>
+        <div className="grid grid-cols-3 grid-rows-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => {
+            const photo = formData.photos[i];
+            const empty = !photo;
+            return (
+              <div
+                key={i}
+                className={`relative w-full aspect-square rounded-xl transition-all ${
+                  empty
+                    ? "border-2 border-dashed border-pink-300 bg-yellow-50 hover:bg-yellow-100 cursor-pointer"
+                    : "border border-gray-200 bg-white shadow-sm overflow-hidden"
+                }`}
+                onClick={empty ? handlePhotoUpload : undefined}
+              >
+                {empty ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-1">
+                    <svg
+                      className="w-8 h-8 text-pink-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12M6 12h12" />
+                    </svg>
+                    <span className="text-xs text-pink-700 font-medium">Add photo</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* swap with <Image src={photo.url} .../> in production */}
+                    <div className="w-full h-full bg-gray-100 grid place-items-center text-sm text-gray-600">
+                      Photo {i + 1}
+                    </div>
+                    <button
+                      className="absolute top-1.5 right-1.5 bg-pink-600 hover:bg-pink-700 text-white w-6 h-6 rounded-full grid place-items-center shadow"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemovePhoto(photo.id);
+                      }}
+                      aria-label="Remove photo"
+                    >
+                      &times;
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
-    );
+
+        <p
+          className={`mt-4 text-sm font-semibold ${
+            isNextEnabled ? "text-pink-700" : "text-red-600"
+          }`}
+        >
+          {isNextEnabled
+            ? `✅ Minimum 2 photos uploaded. You have ${formData.photos.length} photos.`
+            : `❌ Please upload at least ${2 - formData.photos.length} more.`}
+        </p>
+      </section>
+
+      {/* RIGHT */}
+      <aside className="col-span-1 hidden md:block pl-8 pt-2 border-l border-pink-100">
+        <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-6">
+          <h3 className="text-xl font-bold mb-3 text-black">Why Photos Matter</h3>
+          <p className="text-gray-700 mb-4">
+            Your photos are the first impression. High-quality images increase visibility and matches.
+          </p>
+          <ul className="space-y-3 text-gray-800">
+            <li>📸 Use clear, recent photos.</li>
+            <li>🚫 Avoid heavy filters or blurry group shots.</li>
+            <li>😊 Include one smiling photo!</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  );
 };
 
 export default Step1_Photos;
