@@ -13,19 +13,25 @@ const Step4_Review = ({ formData }) => {
         <h2 className="text-3xl md:text-4xl font-extrabold mb-1 text-black">Review and Launch!</h2>
         <p className="text-gray-700">Check your details. Click “Finish” to start connecting.</p>
 
-        {/* Photos */}
+        {/* --- UPDATED PHOTOS BLOCK --- */}
         <div className="space-y-3">
           <h3 className="text-xl font-bold text-black border-b border-pink-100 pb-2">
             Photos ({formData.photos.length} uploaded)
           </h3>
           <div className="flex flex-wrap gap-2">
-            {formData.photos.map((_, i) => (
-              <div key={i} className="w-16 h-16 bg-gray-100 border border-gray-200 rounded-lg grid place-items-center text-xs text-gray-700">
-                P{i + 1}
-              </div>
+            {/* We now map (photo, i) and use an <img> tag */}
+            {formData.photos.map((photo, i) => (
+              <img
+                key={photo.id} // Use the photo's unique ID
+                src={photo.url} // Use the preview URL
+                alt={`Profile photo ${i + 1}`}
+                className="w-16 h-16 bg-gray-100 border border-gray-200 rounded-lg object-cover"
+              />
             ))}
           </div>
         </div>
+        {/* --- END UPDATED BLOCK --- */}
+
 
         {/* Basic Info */}
         <div className="space-y-3">
