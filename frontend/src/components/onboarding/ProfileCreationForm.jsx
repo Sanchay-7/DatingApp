@@ -188,11 +188,10 @@ const ProfileCreationForm = () => {
           <button
             onClick={prevStep}
             disabled={currentStep === 1}
-            className={`px-5 py-2.5 text-sm md:text-base font-semibold rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-pink-300 ${
-              currentStep === 1
+            className={`px-5 py-2.5 text-sm md:text-base font-semibold rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-pink-300 ${currentStep === 1
                 ? "text-gray-400 cursor-not-allowed"
                 : "text-pink-600 hover:bg-pink-50"
-            }`}
+              }`}
           >
             Back
           </button>
@@ -201,30 +200,23 @@ const ProfileCreationForm = () => {
             <button
               onClick={nextStep}
               disabled={!isStepValid}
-              className={`px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold rounded-full shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-pink-300 ${
-                isStepValid
+              className={`px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold rounded-full shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-pink-300 ${isStepValid
                   ? "bg-pink-600 text-white hover:bg-pink-700"
                   : "bg-pink-200 text-white/80 cursor-not-allowed"
-              }`}
+                }`}
             >
               Next
             </button>
           ) : (
-            <div className="flex gap-3">
-              {/* Secondary (outline) to mirror landing header CTAs */}
-              <button
-                onClick={() => setCurrentStep(MAX_STEPS - 1)}
-                className="px-6 py-2.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-pink-300"
-              >
-                Review
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="px-6 md:px-8 py-2.5 md:py-3 font-semibold rounded-full bg-black text-white hover:opacity-90 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
-              >
-                Finish
-              </button>
-            </div>
+            // --- UPDATED BLOCK ---
+            // The "Review" button has been removed. Only the "Finish" button remains.
+            <button
+              onClick={handleSubmit}
+              className="px-6 md:px-8 py-2.5 md:py-3 font-semibold rounded-full bg-black text-white hover:opacity-90 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+            >
+              Finish
+            </button>
+            // --- END UPDATED BLOCK ---
           )}
         </div>
       </footer>
