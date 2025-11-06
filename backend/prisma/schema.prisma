@@ -13,8 +13,20 @@ model User {
   email       String   @unique
   phoneNumber String   @unique
   password    String
-
   isVerified  Boolean  @default(false)
+
+  // ✅ Profile fields
+  name             String?
+  birthday         DateTime?
+  gender           String?
+  work             String?
+  height           Int?
+  hometown         String?
+  currentLocation  String?
+
+  // ✅ JSON fields
+  photos        Json?
+  preferences   Json?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
