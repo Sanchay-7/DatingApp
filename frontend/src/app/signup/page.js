@@ -88,6 +88,10 @@ export default function SignUp() {
 
       const data = await res.json();
       if (res.ok) {
+        // Save token to localStorage if provided
+        if (data.token) {
+          localStorage.setItem("valise_token", data.token);
+        }
         alert("✅ Account created!");
         router.push("/profile-setup");
       } else {

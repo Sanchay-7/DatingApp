@@ -1,8 +1,122 @@
 import prisma from "../config/db.js";
+import cloudinary from "../config/cloudinary.js";
+
+// Upload single image to Cloudinary
+export const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      console.error("No file in request");
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    console.log("Upload request received:", {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      bufferLength: req.file.buffer?.length,
+    });
+
+    // Validate file type
+    if (!req.file.mimetype || !req.file.mimetype.startsWith("image/")) {
+      return res.status(400).json({ error: "File must be an image" });
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (req.file.size > maxSize) {
+      return res.status(400).json({ error: "File size must be less than 10MB" });
+    }
+
+    // Validate buffer exists
+    if (!req.file.buffer || req.file.buffer.length === 0) {
+      return res.status(400).json({ error: "File buffer is empty" });
+    }
+
+    console.log("Preparing to upload to Cloudinary...");
+    console.log("Cloudinary config check:", {
+      hasConfig: !!cloudinary.config().cloud_name,
+      cloudName: cloudinary.config().cloud_name,
+    });
+
+    // Convert buffer to base64 for Cloudinary
+    const base64Image = req.file.buffer.toString("base64");
+    const dataURI = `data:${req.file.mimetype};base64,${base64Image}`;
+
+    console.log("Uploading to Cloudinary (size:", Math.round(dataURI.length / 1024), "KB)...");
+
+    // Upload to Cloudinary
+    const uploadOptions = {
+      folder: "valise-profiles",
+      resource_type: "auto", // Let Cloudinary detect the type
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      transformation: [
+        { width: 1000, height: 1000, crop: "limit" }, // Resize large images
+        { quality: "auto" }, // Optimize quality
+      ],
+    };
+
+    const result = await cloudinary.uploader.upload(dataURI, uploadOptions);
+
+    console.log("✅ Upload successful:", result.secure_url);
+
+    res.status(200).json({
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+  } catch (err) {
+    console.error("❌ Upload image error:", err);
+    console.error("Error details:", {
+      message: err.message,
+      name: err.name,
+      http_code: err.http_code,
+      error: err.error,
+      stack: err.stack?.split("\n").slice(0, 5).join("\n"),
+    });
+    
+    // Return more specific error message
+    let errorMessage = "Failed to upload image";
+    
+    if (err.http_code) {
+      // Cloudinary specific error
+      errorMessage = `Cloudinary error (${err.http_code}): ${err.message || "Upload failed"}`;
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    // Check for common issues
+    if (err.message?.includes("Invalid api_key") || err.message?.includes("authentication")) {
+      errorMessage = "Cloudinary authentication failed. Please check your API credentials.";
+    } else if (err.message?.includes("cloud_name")) {
+      errorMessage = "Cloudinary cloud name not configured. Please check your .env file.";
+    }
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
 
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    console.log("Update profile - User ID from token:", userId);
+    console.log("Update profile - Full req.user:", req.user);
+
+    // Verify user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      console.error("User not found in database. User ID:", userId);
+      console.error("Token payload:", req.user);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    console.log("User found:", existingUser.email);
 
     const {
       name,
@@ -15,18 +129,45 @@ export const updateProfile = async (req, res) => {
       photos,
     } = req.body;
 
+    console.log("Received profile update request for user:", userId);
+    console.log("Request body:", req.body);
+
+    // Prepare update data
+    const updateData = {};
+
+    if (name !== undefined && name !== null) updateData.name = name;
+    if (birthday) {
+      const birthDate = new Date(birthday);
+      if (isNaN(birthDate.getTime())) {
+        return res.status(400).json({ error: "Invalid birthday format" });
+      }
+      updateData.birthday = birthDate;
+    }
+    if (gender !== undefined && gender !== null) updateData.gender = gender;
+    if (work !== undefined) updateData.work = work || null;
+    if (height !== undefined) {
+      if (height !== null && height !== "") {
+        const heightNum = parseInt(height);
+        if (isNaN(heightNum)) {
+          return res.status(400).json({ error: "Invalid height value" });
+        }
+        updateData.height = heightNum;
+      } else {
+        updateData.height = null;
+      }
+    }
+    if (hometown !== undefined) updateData.hometown = hometown || null;
+    if (currentLocation !== undefined) updateData.currentLocation = currentLocation || null;
+    if (photos !== undefined) {
+      // Ensure photos is an array for JSON field
+      updateData.photos = Array.isArray(photos) ? photos : null;
+    }
+
+    console.log("Update data:", updateData);
+
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: {
-        name,
-        birthday: birthday ? new Date(birthday) : undefined,
-        gender,
-        work,
-        height: height ? Number(height) : undefined,
-        hometown,
-        currentLocation,
-        photos,
-      },
+      data: updateData,
     });
 
     res.status(200).json({
@@ -36,7 +177,10 @@ export const updateProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("Update profile error:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error stack:", err.stack);
+    // Return more specific error message
+    const errorMessage = err.message || "Server error";
+    res.status(500).json({ error: errorMessage });
   }
 };
 
@@ -45,6 +189,15 @@ export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Verify user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const {
       interestedIn,
       relationshipIntent,
@@ -52,15 +205,31 @@ export const updatePreferences = async (req, res) => {
       interests,
     } = req.body;
 
+    console.log("Received preferences update request for user:", userId);
+    console.log("Request body:", req.body);
+
+    // Prepare preferences object
+    const preferencesData = {};
+    
+    if (interestedIn !== undefined) {
+      preferencesData.interestedIn = Array.isArray(interestedIn) ? interestedIn : [];
+    }
+    if (relationshipIntent !== undefined) {
+      preferencesData.relationshipIntent = relationshipIntent || null;
+    }
+    if (sexualOrientation !== undefined) {
+      preferencesData.sexualOrientation = sexualOrientation || null;
+    }
+    if (interests !== undefined) {
+      preferencesData.interests = Array.isArray(interests) ? interests : [];
+    }
+
+    console.log("Preferences data:", preferencesData);
+
     const updated = await prisma.user.update({
       where: { id: userId },
       data: {
-        preferences: {
-          interestedIn,
-          relationshipIntent,
-          sexualOrientation,
-          interests,
-        },
+        preferences: preferencesData,
       },
     });
 
@@ -71,7 +240,10 @@ export const updatePreferences = async (req, res) => {
     });
   } catch (err) {
     console.error("Update preferences error:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error stack:", err.stack);
+    // Return more specific error message
+    const errorMessage = err.message || "Server error";
+    res.status(500).json({ error: errorMessage });
   }
 };
 

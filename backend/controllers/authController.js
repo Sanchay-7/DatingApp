@@ -47,9 +47,17 @@ export const signup = async (req, res) => {
       },
     });
 
+    // 6️⃣ Generate JWT token for the new user
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     return res.status(201).json({
       success: true,
       message: "Signup successful",
+      token,
       user,
     });
   } catch (err) {

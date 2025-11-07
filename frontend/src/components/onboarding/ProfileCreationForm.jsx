@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 import Step1_Photos from "./Step1_Photos";
 import Step2_Details from "./Step2_Details";
@@ -20,7 +21,10 @@ import Step4_Review from "./Step4_Review";
 const MAX_STEPS = 4;
 
 const ProfileCreationForm = () => {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const [formData, setFormData] = useState({
     photos: [],
@@ -101,10 +105,147 @@ const ProfileCreationForm = () => {
   };
 
   const handleSubmit = async () => {
-    console.log("Submitting final data to backend API:", formData);
-    alert(
-      "SUCCESS! Profile Data is ready to send to the backend. Check your console log."
-    );
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const token = localStorage.getItem("valise_token");
+      if (!token) {
+        throw new Error("You must be logged in to create a profile. Please login first.");
+      }
+
+      console.log("Token found in localStorage:", token ? "Yes" : "No");
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+
+      // Step 1: Validate photos
+      if (!formData.photos || formData.photos.length < 2) {
+        throw new Error("Please upload at least 2 photos");
+      }
+
+      // Step 2: Upload all photos to get URLs
+      const photoUrls = [];
+      for (const photo of formData.photos) {
+        if (photo.file) {
+          const uploadFormData = new FormData();
+          uploadFormData.append("image", photo.file);
+
+          const uploadResponse = await fetch(`${API_BASE}/api/user/upload-image`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: uploadFormData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || "Failed to upload photo");
+          }
+
+          const uploadData = await uploadResponse.json();
+          photoUrls.push(uploadData.url);
+        } else if (photo.url && !photo.url.startsWith("blob:")) {
+          // If it's already a URL (not a blob URL), use it directly
+          photoUrls.push(photo.url);
+        }
+      }
+
+      // Step 3: Transform birthday to ISO string
+      const { day, month, year } = formData.birthday;
+      if (!day || !month || !year) {
+        throw new Error("Please complete your birthday information");
+      }
+      const birthdayISO = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+
+      // Step 4: Prepare profile data (only include defined values)
+      const profileData = {
+        name: formData.name,
+        birthday: birthdayISO,
+        gender: formData.gender,
+        photos: photoUrls,
+      };
+
+      // Only add optional fields if they have values
+      if (formData.work && formData.work.trim()) {
+        profileData.work = formData.work.trim();
+      }
+      if (formData.height && formData.height.trim()) {
+        const heightNum = parseInt(formData.height);
+        if (!isNaN(heightNum) && heightNum > 0) {
+          profileData.height = heightNum;
+        }
+      }
+      if (formData.hometown && formData.hometown.trim()) {
+        profileData.hometown = formData.hometown.trim();
+      }
+      const location = formData.currentLocation || formData.location;
+      if (location && location.trim()) {
+        profileData.currentLocation = location.trim();
+      }
+
+      console.log("Sending profile data:", profileData);
+
+      // Step 5: Update profile
+      const profileResponse = await fetch(`${API_BASE}/api/user/update-profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!profileResponse.ok) {
+        const errorData = await profileResponse.json().catch(() => ({}));
+        console.error("Profile update error:", errorData);
+        throw new Error(errorData.error || `Failed to update profile: ${profileResponse.status}`);
+      }
+
+      // Step 5: Prepare preferences data
+      const preferencesData = {
+        interestedIn: Array.isArray(formData.preferences.interestedIn) 
+          ? formData.preferences.interestedIn 
+          : [],
+        relationshipIntent: formData.preferences.relationshipIntent || "",
+        interests: Array.isArray(formData.preferences.interests) 
+          ? formData.preferences.interests 
+          : [],
+      };
+
+      // Only include sexualOrientation if it has a value
+      if (formData.preferences.sexualOrientation && formData.preferences.sexualOrientation.trim()) {
+        preferencesData.sexualOrientation = formData.preferences.sexualOrientation.trim();
+      }
+
+      console.log("Sending preferences data:", preferencesData);
+
+      // Step 6: Update preferences
+      const preferencesResponse = await fetch(`${API_BASE}/api/user/update-preferences`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(preferencesData),
+      });
+
+      if (!preferencesResponse.ok) {
+        const errorData = await preferencesResponse.json().catch(() => ({}));
+        console.error("Preferences update error:", errorData);
+        throw new Error(errorData.error || `Failed to update preferences: ${preferencesResponse.status}`);
+      }
+
+      // Success! Redirect to dashboard or home
+      alert("Profile created successfully! 🎉");
+      router.push("/dashboard/user");
+    } catch (error) {
+      console.error("Profile submission error:", error);
+      setSubmitError(error.message || "Failed to create profile. Please try again.");
+      alert(`Error: ${error.message || "Failed to create profile. Please try again."}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStep = () => {
@@ -208,15 +349,22 @@ const ProfileCreationForm = () => {
               Next
             </button>
           ) : (
-            // --- UPDATED BLOCK ---
-            // The "Review" button has been removed. Only the "Finish" button remains.
             <button
               onClick={handleSubmit}
-              className="px-6 md:px-8 py-2.5 md:py-3 font-semibold rounded-full bg-black text-white hover:opacity-90 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+              disabled={isSubmitting}
+              className={`px-6 md:px-8 py-2.5 md:py-3 font-semibold rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all ${
+                isSubmitting
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-black text-white hover:opacity-90"
+              }`}
             >
-              Finish
+              {isSubmitting ? "Creating Profile..." : "Finish"}
             </button>
-            // --- END UPDATED BLOCK ---
+          )}
+          {submitError && (
+            <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-50">
+              {submitError}
+            </div>
           )}
         </div>
       </footer>
