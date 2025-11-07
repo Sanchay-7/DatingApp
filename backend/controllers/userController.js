@@ -74,3 +74,26 @@ export const updatePreferences = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+export const getMyProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // JWT decoded user ID
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+
+  } catch (err) {
+    console.error("Get Profile Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
