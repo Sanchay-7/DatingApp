@@ -1,117 +1,166 @@
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+'use client';
 
-export default function SignIn() {
-  const [emailOrPhone, setEmailOrPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const router = useRouter();
+import React, { useState, useEffect } from 'react';
+// Import your components
+import PhotoGallery from '@/components/PhotoGallery';
+import ProfileCard from '@/components/ProfileCard';
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ emailOrPhone, password }),
+// Get the API base URL from environment variables
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+export default function DashboardPage() {
+  // State to hold profiles and loading status
+  const [allProfiles, setAllProfiles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- API HELPER FUNCTION ---
+  /**
+   * A helper function to make authenticated API calls.
+   * It automatically gets the token from localStorage and sets headers.
+   */
+  const apiFetch = async (endpoint, options = {}) => {
+    const token = localStorage.getItem('valise_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers, // Allow custom headers
+    };
+
+    // Add the token if we have one
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: 'include', // Include cookies (good practice)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  };
+
+  // --- DATA FETCHING ---
+  useEffect(() => {
+    async function fetchProfiles() {
+      setIsLoading(true);
+      try {
+        // Use our new endpoint and helper function!
+        const data = await apiFetch('/api/v1/users/discover');
+        
+        // Our backend sends { success: true, users: [...] }
+        setAllProfiles(data.users || []);
+      } catch (error) {
+        console.error("Failed to fetch profiles:", error);
+        // If auth fails (e.g., bad token), redirect to login
+        if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+          // window.location.href = '/signin';
+          console.error("Auth error, user should be redirected to signin.");
         }
-      );
-      const data = await res.json();
-      if (!res.ok) return alert(data.error || "Login failed");
-      localStorage.setItem("valise_token", data.token);
-      setShowToast(true);
-      setTimeout(() => {
-        setShowToast(false);
-        router.push("/dashboard/user"); // or "/profile-setup"
-      }, 1200);
-    } catch {
-      alert("Unable to reach server");
+        setAllProfiles([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchProfiles();
+  }, []); // Empty array means "run once"
+
+
+  // --- USER ACTIONS (LIKE/SKIP) ---
+
+  // Removes the top card (profile) from the stack
+  const goToNextProfile = () => {
+    // This removes the *first* profile from the array,
+    // and the UI will re-render to show the *new* first profile.
+    setAllProfiles((currentProfiles) => currentProfiles.slice(1));
+  };
+
+  const handleLike = async (profileId) => {
+    try {
+      // Call the 'like' endpoint
+      const data = await apiFetch('/api/v1/users/like', {
+        method: 'POST',
+        body: JSON.stringify({ swipedUserId: profileId }),
+      });
+
+      console.log('Liked:', data);
+      
+      // Check if it was a match!
+      if (data.match) {
+        // TODO: Show a "It's a Match!" modal
+        alert("It's a Match!");
+      }
+
+      // Go to the next profile
+      goToNextProfile();
+
+    } catch (error) {
+      console.error("Failed to 'like' user:", error);
     }
   };
 
-  return (
-    <>
-    <header className="flex items-center justify-between px-6 py-5 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-md bg-pink-500 flex items-center justify-center text-white font-bold">V</div>
-          <span className="text-lg font-bold">Valise Dating</span>
-        </div>
-        <nav className="hidden md:flex items-center gap-6">
-        <Link href="/signup" className="px-6 py-3 border border-pink-600 text-pink-600 rounded-full hover:bg-pink-50">
-          Sign Up
-        </Link>
+  const handleSkip = async (profileId) => {
+    try {
+      // Call the 'skip' endpoint
+      await apiFetch('/api/v1/users/skip', {
+        method: 'POST',
+        body: JSON.stringify({ swipedUserId: profileId }),
+      });
 
-        </nav>
-      </header>
-    <main className="min-h-screen flex items-center justify-center bg-pink-50">
-      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md border border-black/10 backdrop-blur-sm relative">
-        <button
-          onClick={() => router.push("/")}
-          className="absolute top-4 right-4 text-black text-2xl font-bold hover:text-pink-600 transition"
-        >
-          ×
-        </button>
+      // Go to the next profile
+      goToNextProfile();
 
-        <h2 className="text-3xl font-bold mb-6 text-center text-black">Sign In</h2>
+    } catch (error) {
+      console.error("Failed to 'skip' user:", error);
+    }
+  };
 
-        <form className="space-y-6 text-black" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-base font-medium mb-1">Email or Phone</label>
-            <input
-              type="text"
-              value={emailOrPhone}
-              onChange={(e) => setEmailOrPhone(e.target.value)}
-              placeholder="Enter email or phone number"
-              className="w-full px-4 py-3 border-2 border-black/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-600 text-black placeholder-gray-600"
-              required
-            />
-          </div>
+  // The current profile is always the first one in the array
+  const currentProfile = allProfiles[0];
 
-          <div>
-            <label className="block text-base font-medium mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="w-full px-4 py-3 border-2 border-black/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-600 text-black placeholder-gray-600"
-              required
-            />
-          </div>
+  // --- LOADING AND ERROR STATES ---
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" /> Remember me
-            </label>
-            <Link href="/forgot-password" className="text-pink-600 hover:underline font-medium">
-              Forgot password?
-            </Link>
-          </div>
-
-          <button type="submit" className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-700 transition">
-            Sign In
-          </button>
-
-          <p className="text-center text-sm">
-            Don’t have an account?{" "}
-            <Link href="/signup" className="text-pink-600 hover:underline font-medium">
-              Sign Up
-            </Link>
-          </p>
-        </form>
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full justify-center items-center text-xl text-gray-400">
+        Finding profiles...
       </div>
+    );
+  }
 
-      {showToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-pink-600 text-white px-6 py-3 rounded-lg shadow-md animate-fadeIn">
-          ✅ Login successful! Redirecting...
-        </div>
-      )}
-    </main>
-    </>
+  if (!currentProfile) {
+    return (
+      <div className="flex h-screen w-full justify-center items-center text-xl text-gray-500">
+        No more profiles! Try checking back later.
+      </div>
+    );
+  }
+
+  // --- MAIN RENDER ---
+  return (
+    <div className="flex flex-1 overflow-hidden bg-gray-50">
+      <div className="flex flex-1 overflow-hidden">
+        <main className="w-2/3 p-10 flex flex-col items-center overflow-y-auto">
+          
+          {/* We now pass the 'onLike' and 'onSkip' functions to the ProfileCard.
+            Your ProfileCard component must have buttons that call these functions.
+            I'm passing the full profileId to them.
+          */}
+          <ProfileCard 
+            profile={currentProfile} 
+            onLike={() => handleLike(currentProfile.id)} 
+            onSkip={() => handleSkip(currentProfile.id)}
+          />
+
+          <div className="flex-grow"></div>
+        </main>
+
+        <PhotoGallery profile={currentProfile} />
+      </div>
+    </div>
   );
 }
