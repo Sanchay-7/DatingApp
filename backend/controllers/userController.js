@@ -269,3 +269,140 @@ export const getMyProfile = async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 };
+
+/*
+ * =======================================================
+ * CONTROLLER: getDiscoverUsers
+ * Gets a list of users for the logged-in user to swipe
+ * =======================================================
+ */
+export const getDiscoverUsers = async (req, res) => {
+  try {
+    // 1. Get the logged-in user's ID from the authMiddleware
+    const loggedInUserId = req.user.id;
+
+    // 2. Find IDs of users already swiped
+    const swipedUsers = await prisma.interactions.findMany({
+      where: { swiperId: loggedInUserId },
+      select: { swipedId: true },
+    });
+    const swipedUserIds = swipedUsers.map(u => u.swipedId);
+
+    // 3. Find new users to show
+    const usersToDiscover = await prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: loggedInUserId } },    // Not ourself
+          { id: { notIn: swipedUserIds } }, // Not anyone we already swiped
+        ],
+        // TODO: Add preference filtering (e.g., gender)
+        // gender: req.user.preferences.interestedIn 
+      },
+      take: 10, // Get 10 users at a time
+      select: {
+        // Only send the data the frontend needs
+        id: true,
+        firstName: true,
+        work: true,
+        photos: true,
+        currentLocation: true,
+        birthday: true,
+      }
+    });
+
+    res.status(200).json({ success: true, users: usersToDiscover });
+
+  } catch (error) {
+    console.error("Error in getDiscoverUsers:", error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+
+/*
+ * =======================================================
+ * CONTROLLER: likeUser
+ * Records a 'like' action and checks for a match
+ * =======================================================
+ */
+export const likeUser = async (req, res) => {
+  const loggedInUserId = req.user.id;
+  const { swipedUserId } = req.body;
+
+  if (!swipedUserId) {
+    return res.status(400).json({ message: "swipedUserId is required" });
+  }
+
+  try {
+    // 1. Create the 'like' interaction
+    await prisma.interactions.create({
+      data: {
+        swiperId: loggedInUserId,
+        swipedId: swipedUserId,
+        action: 'like',
+      },
+    });
+
+    // 2. Check for a match
+    const otherUserLikedYou = await prisma.interactions.findFirst({
+      where: {
+        swiperId: swipedUserId, // The person *you* liked
+        swipedId: loggedInUserId, // *liked you*
+        action: 'like',
+      }
+    });
+
+    if (otherUserLikedYou) {
+      // IT'S A MATCH!
+      // TODO: Create a 'Match' record in a new 'Matches' table
+      return res.status(201).json({ success: true, message: 'User liked', match: true });
+    }
+
+    // No match yet
+    res.status(201).json({ success: true, message: 'User liked', match: false });
+
+  } catch (error) {
+    // Handle case where user already swiped (unique constraint error)
+    if (error.code === 'P2002') { 
+        return res.status(409).json({ success: false, message: "User already swiped" });
+    }
+    console.error("Error in likeUser:", error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+
+/*
+ * =======================================================
+ * CONTROLLER: skipUser
+ * Records a 'skip' action
+ * =======================================================
+ */
+export const skipUser = async (req, res) => {
+  const loggedInUserId = req.user.id;
+  const { swipedUserId } = req.body;
+
+  if (!swipedUserId) {
+    return res.status(400).json({ message: "swipedUserId is required" });
+  }
+
+  try {
+    // Create the 'skip' interaction
+    await prisma.interactions.create({
+      data: {
+        swiperId: loggedInUserId,
+        swipedId: swipedUserId,
+        action: 'skip',
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'User skipped' });
+  
+  } catch (error) {
+    if (error.code === 'P2002') { 
+        return res.status(409).json({ success: false, message: "User already swiped" });
+    }
+    console.error("Error in skipUser:", error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

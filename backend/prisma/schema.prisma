@@ -30,4 +30,24 @@ model User {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  swipesMade     Interactions[] @relation("Swiper")
+  swipesReceived Interactions[] @relation("Swiped")
+}
+
+model Interactions {
+  id        String   @id @default(cuid())
+  action    String   // "like" or "skip"
+  createdAt DateTime @default(now())
+
+  // Relation to the user who swiped
+  swiperId  String
+  swiper    User     @relation("Swiper", fields: [swiperId], references: [id], onDelete: Cascade)
+
+  // Relation to the user who was swiped on
+  swipedId  String
+  swiped    User     @relation("Swiped", fields: [swipedId], references: [id], onDelete: Cascade)
+
+  // Prevent a user from swiping the same person twice
+  @@unique([swiperId, swipedId])
 }
