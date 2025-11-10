@@ -7,9 +7,6 @@ import {
   updateProfile,
   updatePreferences,
   getMyProfile,
-  getDiscoverUsers,
-  likeUser,
-  skipUser,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -38,14 +35,5 @@ router.post(
 router.put("/update-profile", authMiddleware, updateProfile);
 router.put("/update-preferences", authMiddleware, updatePreferences);
 router.get("/me", authMiddleware, getMyProfile);
-
-// GET users for the dashboard
-router.get("/discover", authMiddleware, getDiscoverUsers);
-
-// POST a 'like' action
-router.post("/like", authMiddleware, likeUser);
-
-// POST a 'skip' action
-router.post("/skip", authMiddleware, skipUser);
 
 export default router;
