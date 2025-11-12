@@ -11,6 +11,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'via.placeholder.com', // Added this one too, as your Discover feed uses it!
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
     ],
   },
 };

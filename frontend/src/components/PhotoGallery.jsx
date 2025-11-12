@@ -7,10 +7,17 @@ export default function PhotoGallery({ profile, isEditing }) {
 
     if (!profile) return null;
 
+    const mainPhoto =
+        profile.mainPhoto ||
+        "https://via.placeholder.com/400x400?text=Add+Photo";
+    const extraPhotos = Array.isArray(profile.extraPhotos)
+        ? profile.extraPhotos
+        : [];
+
     // Renders the 2x2 photo grid
     const renderGallery = () => (
         <div className="grid grid-cols-2 gap-4">
-            {profile.extraPhotos.map((src, index) => (
+            {extraPhotos.map((src, index) => (
                 <div
                     key={index}
                     className="aspect-square bg-gray-200 rounded-lg overflow-hidden relative group"
@@ -41,7 +48,7 @@ export default function PhotoGallery({ profile, isEditing }) {
             {/* Main Profile Photo - Prominently displayed */}
             <div className="aspect-square w-full bg-gray-300 rounded-xl overflow-hidden shadow-lg relative group">
                 <img
-                    src={profile.mainPhoto}
+                    src={mainPhoto}
                     alt={`${profile.name} main photo`}
                     className="w-full h-full object-cover"
                 />

@@ -1,11 +1,48 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { authFetch, clearAuthToken } from "@/lib/apiClient";
 
 export default function Sidebar() {
     const currentPath = usePathname();
+    const router = useRouter();
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadUser = async () => {
+            try {
+                const data = await authFetch("/api/user/me");
+                if (isMounted) {
+                    setUser(data.user);
+                }
+            } catch (error) {
+                console.error("Failed to load user info:", error);
+                if (error.status === 401) {
+                    clearAuthToken();
+                    router.push("/signin");
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadUser();
+        return () => {
+            isMounted = false;
+        };
+    }, [router]);
+
+    const handleLogout = () => {
+        clearAuthToken();
+        router.push("/signin");
+    };
 
     const navLinks = [
         { name: "Discover", href: "/dashboard/user", icon: "👀" },
@@ -51,12 +88,28 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            <div className="pt-4 border-t border-gray-700 lg:mt-auto text-sm text-gray-300 flex items-center flex-shrink-0">
-                <img src="https://via.placeholder.com/32" alt="User" className="w-8 h-8 rounded-full object-cover mr-0 lg:mr-3" />
-                <div className="hidden lg:block">
-                    <p className="font-semibold text-white">Jane Doe</p>
-                    <p className="text-xs text-green-400">Active</p>
+            <div className="pt-4 border-t border-gray-700 lg:mt-auto text-sm text-gray-300 flex items-center justify-between w-full flex-shrink-0 gap-3">
+                <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center mr-0 lg:mr-3 text-sm font-bold">
+                        {user?.name?.charAt(0)?.toUpperCase() ||
+                            user?.firstName?.charAt(0)?.toUpperCase() ||
+                            "U"}
+                    </div>
+                    <div className="hidden lg:block">
+                        <p className="font-semibold text-white">
+                            {isLoading
+                                ? "Loading..."
+                                : user?.name || user?.firstName || "Your Profile"}
+                        </p>
+                        <p className="text-xs text-green-400">Active</p>
+                    </div>
                 </div>
+                <button
+                    onClick={handleLogout}
+                    className="bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+                >
+                    Logout
+                </button>
             </div>
         </aside>
     );

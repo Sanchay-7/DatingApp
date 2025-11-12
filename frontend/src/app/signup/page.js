@@ -114,7 +114,7 @@ export default function SignUp() {
         </div>
         <nav className="hidden md:flex items-center gap-6">
           <Link
-            href="/signup"
+            href="/signin"
             className="px-6 py-3 border border-pink-600 text-pink-600 rounded-full hover:bg-pink-50"
           >
             Sign In

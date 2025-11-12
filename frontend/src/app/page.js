@@ -4,6 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+// Easy image configuration - change these paths as needed
+const IMAGES = {
+  hero1: "/landing1.jpg",
+  hero2: "/landing2.jpg",
+  hero3: "/landing1.jpg",
+  emailCard1: "/landing1.jpg",
+  emailCard2: "/landing1.jpg",
+  emailCard3: "/landing1.jpg",
+  testimonial: "/landing1.jpg",
+  qrCode: "/landing1.jpg",
+  phones: "/landing1.jpg",
+};
+
 export default function Home() {
   const [open, setOpen] = useState(false);
 
@@ -69,7 +82,7 @@ export default function Home() {
               Valise Dating helps members find meaningful and authentic relationships — with safety-first features and an easy, modern design.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <button className="px-5 py-3 rounded-full bg-black text-white">Download Valise</button>
+              <Link href="/signup" className="flex-1 px-4 py-2.5 border border-pink-600 text-pink-600 rounded-full text-center">Sign Up</Link>
               <button className="px-5 py-3 rounded-full border border-black">Learn more</button>
             </div>
           </div>
@@ -78,10 +91,14 @@ export default function Home() {
           <div className="w-full md:w-1/2 flex justify-center">
             <div className="relative w-56 h-80 sm:w-72 sm:h-96 md:w-96 md:h-[420px] -rotate-3 sm:-rotate-6">
               <div className="absolute inset-0 bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div className="w-full h-full bg-[url('/images/placeholder-1.jpg')] bg-cover bg-center" />
+                <Image src={IMAGES.hero1} alt="Dating app preview" fill className="object-cover" />
               </div>
-              <div className="hidden sm:block absolute -right-4 sm:-right-6 top-10 sm:top-12 w-40 sm:w-56 h-56 sm:h-72 rounded-2xl shadow-lg overflow-hidden rotate-3 bg-[url('/images/placeholder-2.jpg')] bg-cover bg-center" />
-              <div className="hidden sm:block absolute -right-8 sm:-right-14 top-20 sm:top-28 w-28 sm:w-40 h-40 sm:h-56 rounded-2xl shadow-lg overflow-hidden rotate-6 bg-[url('/images/placeholder-3.jpg')] bg-cover bg-center" />
+              <div className="hidden sm:block absolute -right-4 sm:-right-6 top-10 sm:top-12 w-40 sm:w-56 h-56 sm:h-72 rounded-2xl shadow-lg overflow-hidden rotate-3">
+                <Image src={IMAGES.hero2} alt="Dating app preview" fill className="object-cover" />
+              </div>
+              <div className="hidden sm:block absolute -right-8 sm:-right-14 top-20 sm:top-28 w-28 sm:w-40 h-40 sm:h-56 rounded-2xl shadow-lg overflow-hidden rotate-6">
+                <Image src={IMAGES.hero3} alt="Dating app preview" fill className="object-cover" />
+              </div>
             </div>
           </div>
         </div>
@@ -108,13 +125,19 @@ export default function Home() {
                 placeholder="Your email"
                 className="px-4 py-3 rounded-lg border border-gray-200 w-full sm:w-auto flex-1"
               />
-              <button className="px-5 py-3 rounded-lg bg-black text-white">Sign up</button>
+              <Link href="/signup" className="flex-1 px-4 py-2.5 border border-pink-600 text-pink-600 rounded-full text-center">Sign Up</Link>
             </div>
           </div>
           <div className="flex gap-4 justify-center md:justify-end">
-            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 bg-gray-100 rounded-xl shadow-inner grid place-items-center">Card</div>
-            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 bg-gray-100 rounded-xl shadow-inner grid place-items-center">Card</div>
-            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 bg-gray-100 rounded-xl shadow-inner grid place-items-center">Card</div>
+            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 rounded-xl shadow-inner overflow-hidden relative">
+              <Image src={IMAGES.emailCard1} alt="Card preview" fill className="object-cover" />
+            </div>
+            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 rounded-xl shadow-inner overflow-hidden relative">
+              <Image src={IMAGES.emailCard2} alt="Card preview" fill className="object-cover" />
+            </div>
+            <div className="w-24 h-40 sm:w-28 sm:h-48 md:w-36 md:h-56 rounded-xl shadow-inner overflow-hidden relative">
+              <Image src={IMAGES.emailCard3} alt="Card preview" fill className="object-cover" />
+            </div>
           </div>
         </div>
       </section>
@@ -123,7 +146,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
         <article id="date" className="rounded-xl bg-yellow-50 p-6 shadow-sm">
           <h4 className="font-bold">Valise Date</h4>
-          <p className="mt-2 text-sm text-gray-700">Whether you’re new to dating or getting back out there, Valise Date brings safety and meaning to every connection.</p>
+          <p className="mt-2 text-sm text-gray-700">Whether you're new to dating or getting back out there, Valise Date brings safety and meaning to every connection.</p>
           <a className="mt-4 inline-block text-sm text-pink-600 font-medium" href="#">Find your person →</a>
         </article>
 
@@ -145,13 +168,15 @@ export default function Home() {
         <div className="grid gap-6 md:grid-cols-2 items-center">
           <div>
             <blockquote className="text-xl sm:text-2xl md:text-3xl font-bold">
-              “We are both naturally positive, happy-go-getters — but when you put us together, it feels like there is nothing we can’t accomplish.”
+              "We are both naturally positive, happy-go-getters — but when you put us together, it feels like there is nothing we can't accomplish."
             </blockquote>
             <p className="mt-4 text-sm text-gray-500">Leslie & Thomas, married in 2025</p>
             <button className="mt-6 px-4 py-2 rounded-full bg-black text-white">Read more stories</button>
           </div>
           <div className="rounded-xl overflow-hidden bg-gray-50 p-4 flex items-center justify-center">
-            <div className="w-52 h-52 sm:w-64 sm:h-64 bg-[url('/images/couple.jpg')] bg-cover bg-center rounded-lg shadow-md" />
+            <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-lg shadow-md overflow-hidden relative">
+              <Image src={IMAGES.testimonial} alt="Happy couple" fill className="object-cover" />
+            </div>
           </div>
         </div>
       </section>
@@ -164,8 +189,12 @@ export default function Home() {
             <p className="mt-2 text-gray-700">Scan the QR code or download from your app store to get started.</p>
           </div>
           <div className="flex items-center gap-6">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-white rounded-lg shadow grid place-items-center">QR</div>
-            <div className="w-28 h-60 sm:w-32 sm:h-64 md:w-40 md:h-72 bg-white rounded-lg shadow grid place-items-center">Phones</div>
+            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-white rounded-lg shadow overflow-hidden relative">
+              <Image src={IMAGES.qrCode} alt="QR Code" fill className="object-cover" />
+            </div>
+            <div className="w-28 h-60 sm:w-32 sm:h-64 md:w-40 md:h-72 bg-white rounded-lg shadow overflow-hidden relative">
+              <Image src={IMAGES.phones} alt="App on phones" fill className="object-cover" />
+            </div>
           </div>
         </div>
       </section>

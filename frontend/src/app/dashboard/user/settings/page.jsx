@@ -1,7 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Sliders, Bell, User, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Sliders, Bell, User, XCircle } from "lucide-react";
+import { authFetch, clearAuthToken } from "@/lib/apiClient";
+import { useRouter } from "next/navigation";
 
 const DEFAULT_SETTINGS = {
     maxDistance: 50,
@@ -17,12 +19,45 @@ const MIN_AGE_LIMIT = 18;
 export default function SettingsPage() {
     const [settings, setSettings] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [feedback, setFeedback] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
-        // We're still using temporary data
-        setSettings(DEFAULT_SETTINGS);
-        setIsLoading(false);
-    }, []);
+        let isMounted = true;
+        const loadSettings = async () => {
+            setIsLoading(true);
+            try {
+                const data = await authFetch("/api/user/settings");
+                if (isMounted) {
+                    setSettings({
+                        ...DEFAULT_SETTINGS,
+                        ...(data.settings || {}),
+                    });
+                    setFeedback(null);
+                }
+            } catch (error) {
+                console.error("Failed to fetch settings:", error);
+                if (isMounted) {
+                    setSettings({ ...DEFAULT_SETTINGS });
+                    setFeedback(error.message);
+                }
+                if (error.status === 401) {
+                    clearAuthToken();
+                    router.push("/signin");
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadSettings();
+        return () => {
+            isMounted = false;
+        };
+    }, [router]);
 
     // --- THIS IS THE FIX (PART 1) ---
     // This function now only allows valid characters (digits or empty)
@@ -91,7 +126,37 @@ export default function SettingsPage() {
 
     const handleSave = (e) => {
         e.preventDefault();
-        console.log("Settings Saved:", settings);
+        if (!settings) return;
+        setIsSaving(true);
+        setFeedback(null);
+
+        const payload = {
+            settings: {
+                ...settings,
+                maxDistance: Number(settings.maxDistance),
+                minAge: Number(settings.minAge),
+                maxAge: Number(settings.maxAge),
+            },
+        };
+
+        authFetch("/api/user/update-preferences", {
+            method: "PUT",
+            body: payload,
+        })
+            .then(() => {
+                setFeedback("Settings saved successfully.");
+            })
+            .catch((error) => {
+                console.error("Failed to save settings:", error);
+                setFeedback(error.message || "Failed to save settings.");
+                if (error.status === 401) {
+                    clearAuthToken();
+                    router.push("/signin");
+                }
+            })
+            .finally(() => {
+                setIsSaving(false);
+            });
     };
 
     const deleteAccount = () => {
@@ -109,6 +174,11 @@ export default function SettingsPage() {
     return (
         <div className="p-4 md:p-8 h-full bg-gray-50">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">Account Settings</h1>
+            {feedback && (
+                <div className="mb-6 p-4 rounded-lg border bg-white text-sm">
+                    {feedback}
+                </div>
+            )}
             <form onSubmit={handleSave} className="space-y-10">
                 <section className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-pink-500">
                     <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
@@ -198,9 +268,10 @@ export default function SettingsPage() {
                 <div className="pt-6">
                     <button
                         type="submit"
+                        disabled={isSaving}
                         className="w-full py-3 px-6 rounded-md shadow-lg text-lg font-medium text-white bg-green-600 hover:bg-green-700 transition duration-150"
                     >
-                        Save All Settings
+                        {isSaving ? "Saving..." : "Save All Settings"}
                     </button>
                 </div>
             </form>

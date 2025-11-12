@@ -2,15 +2,19 @@
 
 import React from 'react';
 
-// Receives the current profile data and the swipe function from page.tsx
-export default function ProfileCard({ profile, onSwipe }) {
+// Receives the current profile data and action handlers from dashboard page
+export default function ProfileCard({ profile, onLike, onSkip }) {
 
     if (!profile) return null;
+
+    const mainPhoto =
+        profile.mainPhoto ||
+        "https://via.placeholder.com/600x600?text=Add+Photos";
 
     // Local function to render interest tags
     const renderTags = () => (
         <div className="flex space-x-2">
-            {profile.tags.map((tag, index) => (
+            {(profile.tags || []).map((tag, index) => (
                 <span
                     key={index}
                     className="bg-white/30 text-sm px-4 py-1 rounded-full backdrop-blur-sm"
@@ -40,7 +44,7 @@ export default function ProfileCard({ profile, onSwipe }) {
 
                     {/* DYNAMIC PHOTO SOURCE */}
                     <img
-                        src={profile.mainPhoto}
+                        src={mainPhoto}
                         alt={`Current Match: ${profile.name}`}
                         className="w-full h-[480px] object-cover"
                     />
@@ -50,10 +54,15 @@ export default function ProfileCard({ profile, onSwipe }) {
                     <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
 
                         {/* DYNAMIC NAME AND AGE */}
-                        <h2 className="text-4xl font-extrabold">{profile.name}, {profile.age}</h2>
+                        <h2 className="text-4xl font-extrabold">
+                            {profile.name}
+                            {profile.age ? `, ${profile.age}` : ""}
+                        </h2>
 
                         {/* DYNAMIC DISTANCE AND JOB */}
-                        <p className="text-lg font-light mb-4">{profile.distance} | {profile.job}</p>
+                        <p className="text-lg font-light mb-4">
+                            {profile.distance || "Nearby"} | {profile.job || "Valise Member"}
+                        </p>
 
                         {/* DYNAMIC INTEREST TAGS */}
                         {renderTags()}
@@ -63,13 +72,13 @@ export default function ProfileCard({ profile, onSwipe }) {
                 {/* Action Buttons: Like and Skip (Calls onSwipe) */}
                 <div className="flex justify-center space-x-8 p-6 bg-white">
                     <button
-                        onClick={onSwipe}
+                        onClick={onSkip}
                         className="bg-gray-200 text-gray-600 p-4 rounded-full shadow-lg hover:bg-gray-300 transition transform hover:scale-105"
                     >
                         <span className="text-3xl">❌ SKIP</span>
                     </button>
                     <button
-                        onClick={onSwipe}
+                        onClick={onLike}
                         className="bg-pink-500 text-white p-4 rounded-full shadow-lg hover:bg-pink-600 transition transform hover:scale-105"
                     >
                         <span className="text-3xl">❤️ LIKE</span>

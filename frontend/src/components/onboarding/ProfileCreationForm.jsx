@@ -236,8 +236,8 @@ const ProfileCreationForm = () => {
         throw new Error(errorData.error || `Failed to update preferences: ${preferencesResponse.status}`);
       }
 
-      // Success! Redirect to waiting page for profile verification
-      router.push("/waiting");
+      // Success! Redirect user straight to their dashboard
+      router.push("/dashboard/user");
     } catch (error) {
       console.error("Profile submission error:", error);
       setSubmitError(error.message || "Failed to create profile. Please try again.");

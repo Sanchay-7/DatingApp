@@ -11,46 +11,22 @@ const BLANK_PROFILE = {
     job: "",
     location: "",
     interests: [],
+    interests: [],
 };
 
-export default function ProfileEditor() {
-    // State to hold the profile data, initialized to null
-    const [profileData, setProfileData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+export default function ProfileEditor({ initialProfile, onSave, isSaving }) {
+    const [profileData, setProfileData] = useState(initialProfile || BLANK_PROFILE);
+    const [isHydrated, setIsHydrated] = useState(Boolean(initialProfile));
 
-    // --- API FETCH LOGIC (SAVED FOR LATER) ---
-    /*
-    // TODO: After this PR is merged, uncomment this block.
-    
     useEffect(() => {
-        const API_ENDPOINT = "http://localhost:5000/api/profile"; 
-        
-        async function fetchProfile() {
-            setIsLoading(true); 
-            try {
-                const response = await fetch(API_ENDPOINT); 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json(); 
-                setProfileData(data.profile || BLANK_PROFILE); 
-            } catch (error) {
-                console.error("Failed to fetch profile:", error);
-                setProfileData(BLANK_PROFILE); // Fallback to blank profile on error
-            } finally {
-                setIsLoading(false);
-            }
+        if (initialProfile) {
+            setProfileData((prev) => ({
+                ...prev,
+                ...initialProfile,
+            }));
+            setIsHydrated(true);
         }
-        fetchProfile();
-    }, []); // Empty array means "run once"
-    */
-
-    // --- TEMPORARY: Simulate loading the blank profile ---
-    useEffect(() => {
-        setProfileData(BLANK_PROFILE);
-        setIsLoading(false);
-    }, []);
-    // --- END TEMPORARY ---
+    }, [initialProfile]);
 
 
     const handleChange = (e) => {
@@ -61,15 +37,15 @@ export default function ProfileEditor() {
         }));
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        // NOTE: This is where you would call your (POST/PUT) backend API.
-        console.log("Profile Data Saved:", profileData);
-        // REMOVED: alert("Profile Updated Locally! (Check console for data)");
+        if (onSave) {
+            await onSave(profileData);
+        }
     };
 
     // Show loading spinner while profile is fetched
-    if (isLoading || !profileData) {
+    if (!isHydrated || !profileData) {
         return (
             <div className="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-2xl flex justify-center items-center h-64">
                 <p className="text-gray-500">Loading profile editor...</p>
@@ -147,9 +123,10 @@ export default function ProfileEditor() {
                 <div className="pt-5 border-t">
                     <button
                         type="submit"
+                        disabled={isSaving}
                         className="w-full py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition duration-150"
                     >
-                        Save Profile Changes
+                        {isSaving ? "Saving..." : "Save Profile Changes"}
                     </button>
                 </div>
             </form>

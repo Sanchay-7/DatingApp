@@ -7,6 +7,11 @@ import {
   updateProfile,
   updatePreferences,
   getMyProfile,
+  getUserSettings,
+  getUserLikes,
+  getDashboardData,
+  recordDislike,
+  recordLike,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -35,5 +40,10 @@ router.post(
 router.put("/update-profile", authMiddleware, updateProfile);
 router.put("/update-preferences", authMiddleware, updatePreferences);
 router.get("/me", authMiddleware, getMyProfile);
+router.get("/settings", authMiddleware, getUserSettings);
+router.get("/likes", authMiddleware, getUserLikes);
+router.get("/dashboard", authMiddleware, getDashboardData);
+router.post("/dislike", authMiddleware, recordDislike);
+router.post("/like", authMiddleware, recordLike);
 
 export default router;

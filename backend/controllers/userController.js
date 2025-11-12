@@ -1,6 +1,87 @@
 import prisma from "../config/db.js";
 import cloudinary from "../config/cloudinary.js";
 
+const DEFAULT_SETTINGS = {
+  maxDistance: 50,
+  minAge: 20,
+  maxAge: 35,
+  showMe: true,
+  newMatchNotify: true,
+};
+
+const DISLIKE_DURATION_DAYS = Number(
+  process.env.RECOMMENDATION_DISLIKE_DAYS || 3
+);
+
+const INTEREST_TO_GENDER = {
+  Men: "Man",
+  Women: "Woman",
+};
+
+const GENDER_TO_INTEREST = {
+  Man: "Men",
+  Woman: "Women",
+};
+
+const DEFAULT_GENDER_POOL = ["Man", "Woman", "More"];
+
+const clone = (value) =>
+  value && typeof value === "object"
+    ? JSON.parse(JSON.stringify(value))
+    : {};
+
+const toArray = (value) => (Array.isArray(value) ? value : []);
+
+const parsePreferences = (prefs) => clone(prefs);
+
+const calculateAge = (birthday) => {
+  if (!birthday) return null;
+  const birthDate = new Date(birthday);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const diffMs = Date.now() - birthDate.getTime();
+  const ageDate = new Date(diffMs);
+  return Math.abs(ageDate.getUTCFullYear() - 1970);
+};
+
+const interestMatchesGender = (interestList, gender) => {
+  const interestedIn = toArray(interestList).filter(Boolean);
+  if (interestedIn.length === 0) return true;
+  if (interestedIn.includes("Everyone")) return true;
+  const genderToken = GENDER_TO_INTEREST[gender] || gender;
+  if (!genderToken) return true;
+  return interestedIn.includes(genderToken);
+};
+
+const mapInterestsToGenders = (interestList) => {
+  const interestedIn = toArray(interestList).filter(Boolean);
+  if (interestedIn.length === 0 || interestedIn.includes("Everyone")) {
+    return null;
+  }
+  const mapped = interestedIn
+    .map((value) => INTEREST_TO_GENDER[value] || null)
+    .filter(Boolean);
+  return mapped.length > 0 ? mapped : null;
+};
+
+const formatRecommendationProfile = (candidate) => {
+  const prefs = parsePreferences(candidate.preferences);
+  const photos = toArray(candidate.photos);
+
+  return {
+    id: candidate.id,
+    name: candidate.name || candidate.firstName || "Valise Member",
+    gender: candidate.gender,
+    age: calculateAge(candidate.birthday),
+    distance: candidate.currentLocation || "Nearby",
+    job: candidate.work || "",
+    mainPhoto: photos[0] || null,
+    extraPhotos: photos.slice(1),
+    tags: toArray(prefs.interests),
+    bio: prefs.bio || "",
+  };
+};
+
+
 // Upload single image to Cloudinary
 export const uploadImage = async (req, res) => {
   try {
@@ -78,10 +159,23 @@ export const updateProfile = async (req, res) => {
 export const updatePreferences = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { interestedIn, relationshipIntent, sexualOrientation, interests } =
-      req.body;
+    const {
+      interestedIn,
+      relationshipIntent,
+      sexualOrientation,
+      interests,
+      bio,
+      settings,
+      likes,
+      matches,
+    } = req.body;
 
-    const preferencesData = {};
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+
+    const preferencesData = parsePreferences(existing?.preferences);
     if (interestedIn !== undefined)
       preferencesData.interestedIn = interestedIn;
     if (relationshipIntent !== undefined)
@@ -89,6 +183,15 @@ export const updatePreferences = async (req, res) => {
     if (sexualOrientation !== undefined)
       preferencesData.sexualOrientation = sexualOrientation;
     if (interests !== undefined) preferencesData.interests = interests;
+    if (bio !== undefined) preferencesData.bio = bio;
+    if (settings !== undefined)
+      preferencesData.settings = {
+        ...DEFAULT_SETTINGS,
+        ...(preferencesData.settings || {}),
+        ...settings,
+      };
+    if (likes !== undefined) preferencesData.likes = likes;
+    if (matches !== undefined) preferencesData.matches = matches;
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -124,6 +227,314 @@ export const getMyProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("Get Profile Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getUserSettings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+
+    const prefs = parsePreferences(user?.preferences);
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      ...(prefs.settings || {}),
+    };
+
+    return res.status(200).json({
+      success: true,
+      settings,
+    });
+  } catch (err) {
+    console.error("Get Settings Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getUserLikes = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const likes = await prisma.like.findMany({
+      where: { toUserId: userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            birthday: true,
+            photos: true,
+            preferences: true,
+          },
+        },
+      },
+    });
+
+    const formatted = likes.map((entry) => {
+      const liker = entry.fromUser;
+      const prefs = parsePreferences(liker.preferences);
+      const photos = toArray(liker.photos);
+      return {
+        id: entry.id,
+        userId: liker.id,
+        name: liker.name || liker.firstName || "Valise Member",
+        age: calculateAge(liker.birthday),
+        imageUrl: photos[0] || null,
+        interests: toArray(prefs.interests),
+        likedAt: entry.createdAt,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      likes: formatted,
+    });
+  } catch (err) {
+    console.error("Get Likes Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getDashboardData = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        gender: true,
+        preferences: true,
+        likesSent: {
+          select: { toUserId: true },
+        },
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const prefs = parsePreferences(currentUser.preferences);
+    const interestedIn = toArray(prefs.interestedIn).filter(Boolean);
+
+    if (!currentUser.gender) {
+      return res.status(200).json({
+        success: true,
+        matches: [],
+      });
+    }
+
+    const targetGenders = mapInterestsToGenders(interestedIn);
+    const viewerShowsEveryone = !targetGenders;
+
+    const now = new Date();
+    const dislikedEntries = toArray(prefs.dislikedProfiles).filter(
+      (entry) => entry && entry.userId
+    );
+
+    const activeDislikes = dislikedEntries.filter((entry) => {
+      if (!entry.expiresAt) return false;
+      const expiresAt = new Date(entry.expiresAt);
+      return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+    });
+
+    const dislikedIds = new Set(
+      activeDislikes.map((entry) => entry.userId).filter(Boolean)
+    );
+
+    if (activeDislikes.length !== dislikedEntries.length) {
+      const updatedPrefs = {
+        ...prefs,
+        dislikedProfiles: activeDislikes,
+      };
+      await prisma.user.update({
+        where: { id: userId },
+        data: { preferences: updatedPrefs },
+      });
+    }
+
+    const likedUserIds = new Set(
+      toArray(currentUser.likesSent).map((entry) => entry?.toUserId).filter(Boolean)
+    );
+
+    const candidateWhere = {
+      id: { not: userId },
+      isVerified: true,
+    };
+
+    if (!viewerShowsEveryone) {
+      candidateWhere.gender = { in: targetGenders };
+    }
+
+    if (likedUserIds.size > 0) {
+      candidateWhere.id = {
+        notIn: Array.from(likedUserIds),
+        not: userId,
+      };
+    }
+
+    const candidates = await prisma.user.findMany({
+      where: candidateWhere,
+      select: {
+        id: true,
+        firstName: true,
+        name: true,
+        gender: true,
+        birthday: true,
+        currentLocation: true,
+        work: true,
+        photos: true,
+        preferences: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+
+    const recommendations = candidates
+      .filter((candidate) => !dislikedIds.has(candidate.id))
+      .filter((candidate) => !likedUserIds.has(candidate.id))
+      .filter((candidate) => {
+        const candidatePrefs = parsePreferences(candidate.preferences);
+        return interestMatchesGender(
+          candidatePrefs.interestedIn,
+          currentUser.gender
+        );
+      })
+      .map(formatRecommendationProfile);
+
+    return res.status(200).json({
+      success: true,
+      matches: recommendations,
+    });
+  } catch (err) {
+    console.error("Get Dashboard Data Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const recordDislike = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "targetUserId is required" });
+    }
+
+    if (targetUserId === userId) {
+      return res
+        .status(400)
+        .json({ error: "You cannot dislike your own profile" });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "Target user not found" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+
+    const prefs = parsePreferences(user?.preferences);
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + DISLIKE_DURATION_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    const existingDislikes = toArray(prefs.dislikedProfiles).filter((entry) => {
+      if (!entry || !entry.userId) return false;
+      if (entry.userId === targetUserId) return false;
+      if (!entry.expiresAt) return false;
+      const entryExpiry = new Date(entry.expiresAt);
+      return !Number.isNaN(entryExpiry.getTime()) && entryExpiry > now;
+    });
+
+    existingDislikes.push({
+      userId: targetUserId,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    prefs.dislikedProfiles = existingDislikes;
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { preferences: prefs },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile hidden from recommendations",
+      expiresAt: expiresAt.toISOString(),
+    });
+  } catch (err) {
+    console.error("Record dislike error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const recordLike = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "targetUserId is required" });
+    }
+
+    if (targetUserId === userId) {
+      return res
+        .status(400)
+        .json({ error: "You cannot like your own profile" });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "Target user not found" });
+    }
+
+    const existingLike = await prisma.like.findFirst({
+      where: {
+        fromUserId: userId,
+        toUserId: targetUserId,
+      },
+    });
+
+    if (existingLike) {
+      return res.status(200).json({
+        success: true,
+        message: "Like already recorded",
+        likeId: existingLike.id,
+      });
+    }
+
+    const like = await prisma.like.create({
+      data: {
+        fromUserId: userId,
+        toUserId: targetUserId,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Profile liked successfully",
+      likeId: like.id,
+    });
+  } catch (err) {
+    console.error("Record like error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 };
