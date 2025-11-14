@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import admin from "../config/firebaseAdmin.js";
 import nodemailer from "nodemailer";
 
-// ✅ SIGNUP — Firebase OTP verification + Save to Postgres
+// ✅ SIGNUP — Creates user as PENDING and sends token for profile setup
 export const signup = async (req, res) => {
   try {
     const { firstName, email, phoneNumber, password, firebaseToken } = req.body;
@@ -14,7 +14,7 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // 2️⃣ Verify Firebase ID Token (proves OTP verified)
+    // 2️⃣ Verify Firebase ID Token
     const decoded = await admin.auth().verifyIdToken(firebaseToken);
 
     if (!decoded.phone_number || decoded.phone_number !== phoneNumber) {
@@ -38,17 +38,19 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 5️⃣ Create user in DB
+    // We remove 'isVerified: true'.
+    // The 'accountStatus' will default to PENDING_APPROVAL from the schema.
     const user = await prisma.user.create({
       data: {
         firstName,
         email,
         phoneNumber,
         password: hashedPassword,
-        isVerified: true, // ✅ Firebase already verified
       },
     });
 
     // 6️⃣ Generate JWT token for the new user
+    // We KEEP this, so the user can complete profile setup (upload photos, etc.)
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
@@ -57,8 +59,8 @@ export const signup = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Signup successful",
-      token,
+      message: "Signup successful, proceed to profile setup.",
+      token, // <-- Token sent so frontend can call update-profile APIs
       user,
     });
   } catch (err) {
@@ -67,7 +69,7 @@ export const signup = async (req, res) => {
   }
 };
 
-// ✅ LOGIN — Normal login using email/phone + password
+// ✅ LOGIN — Checks if user is ACTIVE
 export const login = async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
@@ -83,18 +85,25 @@ export const login = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // ✅ User must be verified (only Firebase does verification)
-    if (!user.isVerified) {
-      return res.status(400).json({ error: "Phone number not verified" });
+    // 2️⃣ Check the user's account status
+    if (user.accountStatus === 'PENDING_APPROVAL') {
+      return res.status(403).json({ error: "Your account is still pending approval." });
+    }
+    if (user.accountStatus === 'BANNED' || user.accountStatus === 'REJECTED') {
+      return res.status(403).json({ error: "Your account has been suspended." });
+    }
+    // Only ACTIVE users can log in
+    if (user.accountStatus !== 'ACTIVE') {
+       return res.status(403).json({ error: "Account is not active." });
     }
 
-    // 2️⃣ Verify password
+    // 3️⃣ Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(400).json({ error: "Invalid password" });
     }
 
-    // 3️⃣ Generate JWT
+    // 4️⃣ Generate JWT
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
@@ -113,6 +122,28 @@ export const login = async (req, res) => {
   }
 };
 
+// 
+// --- ⬇️ THIS IS THE MISSING FUNCTION ⬇️ ---
+// 
+
+// ✅ CHECK AUTH STATUS — Lets the waiting room check approval status
+export const checkAuthStatus = async (req, res) => {
+  try {
+    // req.user is attached by authMiddleware.
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { accountStatus: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return the user's current status (e.g., "ACTIVE" or "PENDING_APPROVAL")
+    res.status(200).json({ status: user.accountStatus });
+
+  } catch (err) {
+    console.error("Check Status Error:", err);
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;

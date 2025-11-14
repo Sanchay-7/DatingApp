@@ -237,7 +237,7 @@ const ProfileCreationForm = () => {
       }
 
       // Success! Redirect user straight to their dashboard
-      router.push("/dashboard/user");
+      router.push("/waiting");
     } catch (error) {
       console.error("Profile submission error:", error);
       setSubmitError(error.message || "Failed to create profile. Please try again.");

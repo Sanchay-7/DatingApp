@@ -311,11 +311,16 @@ export const getDashboardData = async (req, res) => {
         likesSent: {
           select: { toUserId: true },
         },
+        accountStatus: true,
       },
     });
 
     if (!currentUser) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    if (currentUser.accountStatus !== 'ACTIVE') {
+      return res.status(403).json({ error: "Account not active." });
     }
 
     const prefs = parsePreferences(currentUser.preferences);
@@ -363,8 +368,8 @@ export const getDashboardData = async (req, res) => {
 
     const candidateWhere = {
       id: { not: userId },
-      isVerified: true,
-    };
+      accountStatus: "ACTIVE",
+    }
 
     if (!viewerShowsEveryone) {
       candidateWhere.gender = { in: targetGenders };
