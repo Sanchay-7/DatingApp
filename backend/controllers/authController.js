@@ -2,6 +2,7 @@ import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import admin from "../config/firebaseAdmin.js";
+import nodemailer from "nodemailer";
 
 // ✅ SIGNUP — Firebase OTP verification + Save to Postgres
 export const signup = async (req, res) => {
@@ -108,6 +109,90 @@ export const login = async (req, res) => {
     });
   } catch (err) {
     console.error("Login Error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Generate JWT reset token
+    const resetToken = jwt.sign({ id: user.id }, process.env.JWT_RESET_SECRET, {
+      expiresIn: "15m",
+    });
+
+    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+    // Create test account and transporter
+    const testAccount = await nodemailer.createTestAccount();
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: false, // true for 465, false for 587
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: '"DatingApp" <noreply@datingapp.com>',
+      to: user.email,
+      subject: "Reset Your Password",
+      html: `<p>Hello ${user.firstName},</p>
+             <p>Click below to reset your password:</p>
+             <a href="${resetLink}">${resetLink}</a>
+             <p>This link expires in 15 minutes.</p>`,
+    });
+
+    console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+
+    res.status(200).json({
+      success: true,
+      message: "Reset link sent to email (check Ethereal preview URL)",
+    });
+  } catch (err) {
+    console.error("Forgot Password Error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword)
+      return res.status(400).json({ error: "All fields are required" });
+
+    // 1️⃣ Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_RESET_SECRET);
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    // 2️⃣ Find user
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // 3️⃣ Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 4️⃣ Update password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    res
+      .status(200)
+      .json({ success: true, message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Reset Password Error:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
