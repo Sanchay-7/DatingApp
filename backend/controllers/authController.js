@@ -144,6 +144,11 @@ export const checkAuthStatus = async (req, res) => {
 
   } catch (err) {
     console.error("Check Status Error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ✅ FORGOT PASSWORD — Sends password reset link to email
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
