@@ -72,6 +72,7 @@ const formatRecommendationProfile = (candidate) => {
     name: candidate.name || candidate.firstName || "Valise Member",
     gender: candidate.gender,
     age: calculateAge(candidate.birthday),
+    birthday: candidate.birthday,
     distance: candidate.currentLocation || "Nearby",
     job: candidate.work || "",
     mainPhoto: photos[0] || null,
@@ -487,6 +488,82 @@ export const recordDislike = async (req, res) => {
   }
 };
 
+// ✅ DELETE ACCOUNT — Permanently deletes user and all associated data
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: "Password is required for account deletion" });
+    }
+
+    // Fetch user to verify password
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify password
+    const bcrypt = await import("bcryptjs");
+    const validPassword = await bcrypt.default.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(403).json({ error: "Invalid password" });
+    }
+
+    // Delete all related data
+    // Delete messages from conversations
+    await prisma.message.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { conversation: { participants: { some: { userId } } } },
+        ],
+      },
+    });
+
+    // Delete conversation participants
+    await prisma.conversationParticipant.deleteMany({
+      where: { userId },
+    });
+
+    // Delete conversations where user is the only participant (cleanup)
+    const orphanedConvos = await prisma.conversation.findMany({
+      where: {
+        participants: { none: {} },
+      },
+    });
+    if (orphanedConvos.length > 0) {
+      await prisma.conversation.deleteMany({
+        where: { id: { in: orphanedConvos.map((c) => c.id) } },
+      });
+    }
+
+    // Delete likes sent and received
+    await prisma.like.deleteMany({
+      where: {
+        OR: [{ fromUserId: userId }, { toUserId: userId }],
+      },
+    });
+
+    // Delete the user
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete Account Error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
 export const recordLike = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -540,6 +617,106 @@ export const recordLike = async (req, res) => {
     });
   } catch (err) {
     console.error("Record like error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ✅ REPORT USER — Report a profile as fake/inappropriate
+export const reportUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { reportedUserId, reason } = req.body;
+
+    console.log(`[REPORT] User ${userId} reporting user ${reportedUserId} for: ${reason}`);
+
+    if (!reportedUserId) {
+      return res.status(400).json({ error: "reportedUserId is required" });
+    }
+
+    if (!reason) {
+      return res.status(400).json({ error: "reason is required" });
+    }
+
+    if (reportedUserId === userId) {
+      return res.status(400).json({ error: "You cannot report your own profile" });
+    }
+
+    // Verify reported user exists
+    const reportedUser = await prisma.user.findUnique({
+      where: { id: reportedUserId },
+      select: { id: true, accountStatus: true },
+    });
+
+    if (!reportedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Create a report record (store in preferences as an array)
+    const reporterUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+
+    const prefs = parsePreferences(reporterUser?.preferences);
+    
+    // Initialize reports array if it doesn't exist
+    if (!prefs.reports) {
+      prefs.reports = [];
+    }
+
+    // Check if user already reported this profile
+    const alreadyReported = prefs.reports.some(r => r.reportedUserId === reportedUserId);
+    if (alreadyReported) {
+      console.log(`[REPORT] User ${userId} already reported ${reportedUserId}`);
+      return res.status(200).json({
+        success: true,
+        message: "You have already reported this user"
+      });
+    }
+
+    // Add new report
+    prefs.reports.push({
+      reportedUserId,
+      reason,
+      reportedAt: new Date().toISOString(),
+    });
+
+    // Update reporter preferences (keep local record for UX/history)
+    await prisma.user.update({
+      where: { id: userId },
+      data: { preferences: prefs },
+    });
+
+    // Create a Report record in the DB (Report.status defaults to PENDING)
+    // First, ensure we don't already have a pending report from this reporter for this user
+    const existingDbReport = await prisma.report.findFirst({
+      where: {
+        reporterId: userId,
+        reportedUserId,
+        status: 'PENDING',
+      },
+    });
+
+    if (!existingDbReport) {
+      const newReport = await prisma.report.create({
+        data: {
+          reason,
+          reporterId: userId,
+          reportedUserId,
+        },
+      });
+      console.log(`[REPORT] Created Report record: ${newReport.id}`);
+    } else {
+      console.log(`[REPORT] Report already exists in DB for ${userId} -> ${reportedUserId}`);
+    }
+
+    console.log(`[REPORT] Success: Report submitted for user ${reportedUserId}`);
+    return res.status(201).json({
+      success: true,
+      message: "Report submitted successfully. The account has been flagged for moderation.",
+    });
+  } catch (err) {
+    console.error("Report user error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 };

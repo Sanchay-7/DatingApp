@@ -114,7 +114,7 @@ const ProfileCreationForm = () => {
         throw new Error("You must be logged in to create a profile. Please login first.");
       }
 
-      console.log("Token found in localStorage:", token ? "Yes" : "No");
+      // Console logs removed for production
 
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 
@@ -184,7 +184,7 @@ const ProfileCreationForm = () => {
         profileData.currentLocation = location.trim();
       }
 
-      console.log("Sending profile data:", profileData);
+      // Console logs removed for production
 
       // Step 5: Update profile
       const profileResponse = await fetch(`${API_BASE}/api/user/update-profile`, {
@@ -218,7 +218,7 @@ const ProfileCreationForm = () => {
         preferencesData.sexualOrientation = formData.preferences.sexualOrientation.trim();
       }
 
-      console.log("Sending preferences data:", preferencesData);
+      // Console logs removed for production
 
       // Step 6: Update preferences
       const preferencesResponse = await fetch(`${API_BASE}/api/user/update-preferences`, {
@@ -276,7 +276,7 @@ const ProfileCreationForm = () => {
   return (
     <div className="min-h-screen bg-white text-black flex flex-col font-sans">
       {/* HEADER */}
-      <header className="w-full px-6 md:px-10 py-4 border-b border-pink-100 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+      <header className="w-full px-6 md:px-10 py-4 border-b border-pink-100 bg-white/80 backdrop-blur supports-backdrop-filter:bg-white/70">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           {/* Brand */}
           <div className="flex items-center gap-3">
@@ -306,7 +306,7 @@ const ProfileCreationForm = () => {
       <div className="h-1.5 w-full bg-yellow-300" />
 
       {/* MAIN */}
-      <main className="flex-grow flex justify-center items-start py-10 px-6 md:px-10">
+      <main className="grow flex justify-center items-start py-10 px-6 md:px-10">
         <div className="max-w-6xl w-full">
           {/* Soft card shell to match landing surfaces */}
           <div className="rounded-2xl border border-gray-200 shadow-sm bg-white">

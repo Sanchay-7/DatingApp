@@ -109,3 +109,178 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+// ✅ ADMIN ANALYTICS
+export const getAnalytics = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Start of today
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Active users: updatedAt or createdAt since start of today
+    const activeUsers = await prisma.user.count({
+      where: {
+        OR: [{ updatedAt: { gte: todayStart } }, { createdAt: { gte: todayStart } }],
+      },
+    });
+
+    // New signups last 24 hours
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const newSignups = await prisma.user.count({
+      where: { createdAt: { gte: yesterday } },
+    });
+
+    // Total swipes (likes) last 24 hours
+    const totalSwipes = await prisma.like.count({
+      where: { createdAt: { gte: yesterday } },
+    });
+
+    // Pending reports (user-submitted reports waiting review)
+    // The schema uses a separate `Report` model with enum `ReportStatus` (PENDING / RESOLVED)
+    const pendingReports = await prisma.report.count({
+      where: { status: "PENDING" },
+    });
+
+    // Signup series for last 30 days (simple per-day counts)
+    const days = 30;
+    const signupSeries = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      const count = await prisma.user.count({ where: { createdAt: { gte: start, lt: end } } });
+      signupSeries.push({ date: start.toISOString().slice(0, 10), count });
+    }
+
+    return res.status(200).json({
+      success: true,
+      analytics: {
+        activeUsers: String(activeUsers),
+        activeUsersChange: "+0%",
+        newSignups: String(newSignups),
+        newSignupsChange: "+0%",
+        totalSwipes: String(totalSwipes),
+        totalSwipesChange: "+0%",
+        pendingReports: String(pendingReports),
+        pendingReportsChange: "OK",
+        signupSeries,
+      },
+    });
+  } catch (err) {
+    console.error("Analytics error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ✅ GET MODERATION QUEUE (pending reports)
+export const getModerationQueue = async (req, res) => {
+  try {
+    console.log('[MODERATION] Fetching moderation queue...');
+    
+    // Fetch pending reports and include reporter & reported user summaries
+    const reports = await prisma.report.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { id: true, firstName: true, name: true, email: true } },
+        reportedUser: { select: { id: true, firstName: true, name: true, photos: true, email: true } },
+      },
+    });
+
+    console.log(`[MODERATION] Found ${reports.length} pending reports`);
+
+    // Map to a lightweight shape for the admin UI
+    const queue = reports.map((r) => ({
+      id: r.id,
+      reason: r.reason,
+      createdAt: r.createdAt,
+      reporter: r.reporter?.firstName || r.reporter?.name || r.reporter?.email || r.reporter?.id,
+      reportedUser: r.reportedUser?.firstName || r.reportedUser?.name || r.reportedUser?.email || r.reportedUser?.id,
+      reportedUserId: r.reportedUserId,
+      reporterId: r.reporterId,
+      content: Array.isArray(r.reportedUser?.photos) && r.reportedUser.photos.length > 0 ? r.reportedUser.photos[0] : null,
+      raw: r,
+    }));
+
+    return res.status(200).json({ success: true, queue });
+  } catch (err) {
+    console.error('Get moderation queue error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ✅ DISMISS A REPORT (mark as resolved without banning)
+export const dismissReport = async (req, res) => {
+  try {
+    const { reportId } = req.body;
+
+    if (!reportId) {
+      return res.status(400).json({ error: 'reportId is required' });
+    }
+
+    console.log(`[MODERATION] Dismissing report: ${reportId}`);
+
+    // Update report status to RESOLVED
+    const updatedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: { status: 'RESOLVED' },
+    });
+
+    console.log(`[MODERATION] Report dismissed: ${reportId}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Report dismissed successfully',
+      report: updatedReport,
+    });
+  } catch (err) {
+    console.error('Dismiss report error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ✅ BAN USER (mark as resolved and ban the reported user)
+export const banReportedUser = async (req, res) => {
+  try {
+    const { reportId } = req.body;
+
+    if (!reportId) {
+      return res.status(400).json({ error: 'reportId is required' });
+    }
+
+    console.log(`[MODERATION] Banning user from report: ${reportId}`);
+
+    // Get the report to find the reported user
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      select: { reportedUserId: true },
+    });
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Ban the reported user by updating their account status
+    const bannedUser = await prisma.user.update({
+      where: { id: report.reportedUserId },
+      data: { accountStatus: 'BANNED' },
+    });
+
+    // Mark the report as RESOLVED
+    const updatedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: { status: 'RESOLVED' },
+    });
+
+    console.log(`[MODERATION] User banned: ${report.reportedUserId}`);
+    return res.status(200).json({
+      success: true,
+      message: 'User banned successfully',
+      bannedUser,
+      report: updatedReport,
+    });
+  } catch (err) {
+    console.error('Ban user error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};

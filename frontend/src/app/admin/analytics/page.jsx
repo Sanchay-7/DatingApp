@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { TrendingUp, UserPlus, Zap, BarChart, ShieldAlert } from 'lucide-react';
 // IMPORT THE NEW COMPONENT
 import AdminCard from '@/components/AdminCard';
@@ -31,45 +32,80 @@ const DEFAULT_ANALYTICS = {
     pendingReports: "0",
     pendingReportsChange: "OK"
 };
+// Ensure default includes signupSeries so charts get a consistent shape
+DEFAULT_ANALYTICS.signupSeries = [];
+
+// Simple bar chart for signupSeries (no external deps)
+const SignupSeriesBarChart = ({ series = [] }) => {
+    if (!Array.isArray(series) || series.length === 0) {
+        return (
+            <div className="h-40 flex items-center justify-center text-gray-500">No data</div>
+        );
+    }
+
+    const max = Math.max(...series.map((s) => s.count || 0), 1);
+
+    return (
+        <div className="w-full h-40 flex items-end gap-1">
+            {series.map((s) => {
+                const height = Math.round(((s.count || 0) / max) * 100);
+                return (
+                    <div key={s.date} className="flex-1 flex items-end">
+                        <div
+                            title={`${s.date}: ${s.count}`}
+                            className="mx-0.5 w-full bg-green-500 hover:bg-green-400 transition-all rounded-t"
+                            style={{ height: `${height}%` }}
+                        />
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 export default function AnalyticsPage() {
     // State to hold the analytics data
     const [analyticsData, setAnalyticsData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
-    // --- API FETCH LOGIC (SAVED FOR LATER) ---
-    /*
-    // TODO: After this PR is merged, uncomment this block.
-    
+    // Fetch analytics from backend (protected route)
     useEffect(() => {
-        const API_ENDPOINT = "http://localhost:5000/api/admin/analytics"; 
-        
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+
         async function fetchAnalytics() {
-            setIsLoading(true); 
+            setIsLoading(true);
             try {
-                const response = await fetch(API_ENDPOINT); 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                const token = localStorage.getItem('admin_token');
+                if (!token) {
+                    router.push('/admin/login');
+                    return;
                 }
-                const data = await response.json(); 
-                setAnalyticsData(data.analytics || DEFAULT_ANALYTICS); 
-            } catch (error) {
-                console.error("Failed to fetch analytics:", error);
-                setAnalyticsData(DEFAULT_ANALYTICS); // Fallback to defaults on error
+
+                const res = await fetch(`${API_BASE}/api/v1/admin/analytics`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) {
+                        router.push('/admin/login');
+                        return;
+                    }
+                    throw new Error(`HTTP ${res.status}`);
+                }
+
+                const body = await res.json();
+                setAnalyticsData(body.analytics || { ...DEFAULT_ANALYTICS, signupSeries: [] });
+            } catch (err) {
+                console.error('Failed to load analytics', err);
+                setAnalyticsData({ ...DEFAULT_ANALYTICS, signupSeries: [] });
             } finally {
                 setIsLoading(false);
             }
         }
-        fetchAnalytics();
-    }, []); // Empty array means "run once"
-    */
 
-    // --- TEMPORARY: Simulate loading default data (since fetch is commented) ---
-    useEffect(() => {
-        setAnalyticsData(DEFAULT_ANALYTICS);
-        setIsLoading(false);
-    }, []);
-    // --- END TEMPORARY ---
+        fetchAnalytics();
+    }, [router]);
 
     // Show loading spinner while analytics are fetched
     if (isLoading || !analyticsData) {
@@ -121,9 +157,10 @@ export default function AnalyticsPage() {
 
             {/* Section 2: User Growth Chart Placeholder */}
             <div className="mb-8">
-                <AdminCard title="User Growth: Signups vs. Deletes (Last 30 Days)">
-                    <div className="h-80 flex items-center justify-center text-gray-500 bg-gray-900 rounded-lg">
-                        [ Placeholder for Line Chart Component (e.g., Recharts or Nivo) ]
+                <AdminCard title="User Growth: Signups (Last 30 Days)">
+                    <div className="p-4 bg-gray-900 rounded-lg">
+                        <div className="text-sm text-gray-300 mb-3">Signups per day (last 30 days)</div>
+                        <SignupSeriesBarChart series={analyticsData.signupSeries || []} />
                     </div>
                 </AdminCard>
             </div>

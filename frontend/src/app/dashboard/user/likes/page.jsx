@@ -1,10 +1,11 @@
 // app/dashboard/user/likes/page.jsx (API-Ready)
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { authFetch, clearAuthToken } from "@/lib/apiClient";
+import { notifyNewMatch } from "@/lib/notifications";
 
 // New, upgraded LikedUserCard component
 // This component is perfect and needs no changes.
@@ -80,6 +81,7 @@ export default function LikesYouPage() {
     const [error, setError] = useState(null);
     const [actionError, setActionError] = useState(null);
     const [pendingLikeId, setPendingLikeId] = useState(null);
+    const prevCountRef = useRef(0);
     const router = useRouter();
 
     // --- API FETCH LOGIC (SAVED FOR LATER) ---
@@ -88,7 +90,29 @@ export default function LikesYouPage() {
             setIsLoading(true);
             try {
                 const data = await authFetch("/api/user/likes");
-                setLikedUsers(Array.isArray(data.likes) ? data.likes : []);
+                const likes = Array.isArray(data.likes) ? data.likes : [];
+                
+                // Check if new likes arrived (send notification for each new one)
+                if (likes.length > prevCountRef.current) {
+                    const newLikes = likes.length - prevCountRef.current;
+                    const notificationSettings = localStorage.getItem("userSettings");
+                    const isNotificationEnabled = notificationSettings 
+                        ? JSON.parse(notificationSettings).newMatchNotify 
+                        : true;
+
+                    if (isNotificationEnabled && newLikes > 0) {
+                        // Notify for the newest like(s)
+                        for (let i = 0; i < Math.min(newLikes, 3); i++) {
+                          const like = likes[i];
+                            if (like && like.name) {
+                                notifyNewMatch(like.name);
+                            }
+                        }
+                    }
+                }
+
+                prevCountRef.current = likes.length;
+                setLikedUsers(likes);
                 setError(null);
             } catch (error) {
                 console.error("Failed to fetch likes:", error);
@@ -104,6 +128,11 @@ export default function LikesYouPage() {
         };
 
         loadLikes();
+
+        // Poll for new likes every 10 seconds
+        const interval = setInterval(loadLikes, 10000);
+
+        return () => clearInterval(interval);
     }, [router]);
 
     const removeLikeEntry = (id) => {

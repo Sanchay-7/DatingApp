@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authFetch, clearAuthToken } from "@/lib/apiClient";
 import { decryptPayload } from "@/lib/crypto";
 import { getChatClient } from "@/lib/chatClient";
+import { notifyNewMessage } from "@/lib/notifications";
 
 const keyStorageKey = (conversationId) =>
     `conversation-key:${conversationId}`;
@@ -235,6 +236,25 @@ export default function MessagesPage() {
                     const data = msg.data;
                     try {
                         const text = await decryptPayload(key, data);
+                        
+                        // Check if this is an incoming message (not from the current user)
+                        const isIncomingMessage = data.senderId !== (await authFetch("/api/user/me").then(u => u.user?.id).catch(() => null));
+                        
+                        // Send notification for incoming message if enabled
+                        if (isIncomingMessage) {
+                            const notificationSettings = localStorage.getItem("userSettings");
+                            const isNotificationEnabled = notificationSettings 
+                                ? JSON.parse(notificationSettings).newMatchNotify 
+                                : true;
+                            
+                            if (isNotificationEnabled) {
+                                const senderName = activeConversation?.participants?.find(p => p.user?.id === data.senderId)?.user?.name 
+                                    || activeConversation?.participants?.find(p => p.user?.id === data.senderId)?.user?.firstName 
+                                    || "Someone";
+                                notifyNewMessage(senderName, activeConversation.id);
+                            }
+                        }
+                        
                         setMessages((prev) => {
                             if (prev.some((item) => item.id === data.id)) {
                                 return prev;

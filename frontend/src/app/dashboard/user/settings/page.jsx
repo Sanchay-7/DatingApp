@@ -21,6 +21,9 @@ export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [feedback, setFeedback] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -144,6 +147,10 @@ export default function SettingsPage() {
             body: payload,
         })
             .then(() => {
+                // Save settings to localStorage for client-side notification checking
+                if (typeof window !== "undefined") {
+                    localStorage.setItem("userSettings", JSON.stringify(payload.settings));
+                }
                 setFeedback("Settings saved successfully.");
             })
             .catch((error) => {
@@ -159,8 +166,36 @@ export default function SettingsPage() {
             });
     };
 
-    const deleteAccount = () => {
-        console.warn("Account Deletion Clicked.");
+    const deleteAccount = async () => {
+        if (!deletePassword) {
+            setFeedback("Please enter your password to delete your account");
+            return;
+        }
+
+        setIsDeleting(true);
+        setFeedback(null);
+
+        try {
+            await authFetch("/api/user/delete-account", {
+                method: "DELETE",
+                body: { password: deletePassword },
+            });
+
+            // Clear auth token and redirect to signin
+            clearAuthToken();
+            setShowDeleteModal(false);
+            router.push("/signin?deleted=true");
+        } catch (error) {
+            console.error("Account deletion failed:", error);
+            setFeedback(error.message || "Failed to delete account. Please check your password.");
+            if (error.status === 401) {
+                clearAuthToken();
+                router.push("/signin");
+            }
+        } finally {
+            setIsDeleting(false);
+            setDeletePassword("");
+        }
     };
 
     if (isLoading || !settings) {
@@ -172,7 +207,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 h-full bg-gray-50">
+        <div className="p-4 md:p-8 bg-gray-50 pb-24 lg:pb-0">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">Account Settings</h1>
             {feedback && (
                 <div className="mb-6 p-4 rounded-lg border bg-white text-sm">
@@ -225,7 +260,7 @@ export default function SettingsPage() {
                                 min={Number(settings.minAge) || MIN_AGE_LIMIT} // <-- UPDATED
                                 max="99"
                                 placeholder="Max Age"
-                                className="p-3 border rounded-lg w-full md:w-1D-1/2 focus:ring-pink-500 focus:border-pink-500"
+                                className="p-3 border rounded-lg w-full md:w-1/2 focus:ring-pink-500 focus:border-pink-500"
                             />
                         </div>
                         {/* --- END OF FIX --- */}
@@ -234,7 +269,7 @@ export default function SettingsPage() {
                         <span className="text-md text-gray-700">Show me in Discover (Pause your profile)</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" name="showMe" checked={settings.showMe} onChange={handleChange} className="sr-only peer" />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
                         </label>
                     </div>
                 </section>
@@ -243,10 +278,10 @@ export default function SettingsPage() {
                         <Bell className="w-6 h-6 mr-3 text-indigo-600" /> Notifications
                     </h2>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-md text-gray-70E-1/2 text-gray-700">New Match Alerts</span>
+                        <span className="text-md text-gray-700">New Match Alerts</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" name="newMatchNotify" checked={settings.newMatchNotify} onChange={handleChange} className="sr-only peer" />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                         </label>
                     </div>
                 </section>
@@ -257,7 +292,7 @@ export default function SettingsPage() {
                     <div className="pt-4 border-t border-gray-100">
                         <button
                             type="button"
-                            onClick={deleteAccount}
+                            onClick={() => setShowDeleteModal(true)}
                             className="flex items-center justify-center py-2 px-4 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition duration-150"
                         >
                             <XCircle className="w-5 h-5 mr-2" /> Permanently Delete Account
@@ -275,6 +310,57 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </form>
+
+            {/* Delete Account Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Delete Account?</h3>
+                        <p className="text-gray-600 mb-4">
+                            This action cannot be undone. Your account, messages, likes, and matches will be permanently deleted.
+                        </p>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Enter your password to confirm:
+                            </label>
+                            <input
+                                type="password"
+                                value={deletePassword}
+                                onChange={(e) => setDeletePassword(e.target.value)}
+                                placeholder="Enter password"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
+                        </div>
+                        {feedback && (
+                            <div className="mb-4 p-3 rounded-lg border bg-red-50 text-sm text-red-600">
+                                {feedback}
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setDeletePassword("");
+                                    setFeedback(null);
+                                }}
+                                disabled={isDeleting}
+                                className="px-4 py-2 rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={deleteAccount}
+                                disabled={isDeleting || !deletePassword}
+                                className="px-4 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 transition disabled:opacity-50"
+                            >
+                                {isDeleting ? "Deleting..." : "Delete Account"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

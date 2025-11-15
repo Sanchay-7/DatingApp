@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 // Import your components
-import PhotoGallery from '@/components/PhotoGallery';
 import ProfileCard from '@/components/ProfileCard';
 import { authFetch, clearAuthToken } from '@/lib/apiClient';
 import { useRouter } from 'next/navigation';
@@ -17,6 +16,9 @@ export default function DashboardPage() {
     const [error, setError] = useState(null);
     const [actionMessage, setActionMessage] = useState(null);
     const [isActionPending, setIsActionPending] = useState(false);
+    const [minAge, setMinAge] = useState(18);
+    const [maxAge, setMaxAge] = useState(65);
+    const [showAgeFilter, setShowAgeFilter] = useState(false);
     const router = useRouter();
 
     // --- API FETCH LOGIC (UNCOMMENTED) ---
@@ -43,9 +45,31 @@ export default function DashboardPage() {
         }
     }, [router]);
 
+    // Fetch user settings to get age preferences
+    const fetchSettings = useCallback(async () => {
+        try {
+            const data = await authFetch('/api/user/settings', {
+                method: 'GET',
+            });
+            if (data && data.settings) {
+                setMinAge(data.settings.minAge || 18);
+                setMaxAge(data.settings.maxAge || 65);
+            } else {
+                setMinAge(18);
+                setMaxAge(65);
+            }
+        } catch (settingsError) {
+            console.error("[DASHBOARD] Failed to fetch settings:", settingsError);
+            // Use default values if fetch fails
+            setMinAge(18);
+            setMaxAge(65);
+        }
+    }, []);
+
     useEffect(() => {
+        fetchSettings();
         fetchProfiles();
-    }, [fetchProfiles]); // Empty array means "run once"
+    }, [fetchSettings, fetchProfiles]); // Empty array means "run once"
 
     // --- END API FETCH LOGIC ---
 
@@ -69,15 +93,46 @@ export default function DashboardPage() {
         });
     }, [fetchProfiles]);
 
+    // Function to calculate age from birthday
+    const calculateAge = (birthday) => {
+        if (!birthday) {
+            return null;
+        }
+        const today = new Date();
+        const birthDate = new Date(birthday);
+        if (isNaN(birthDate.getTime())) {
+            return null;
+        }
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    };
+
+    // Filter profiles based on age range
+    const filteredProfiles = allProfiles.filter((profile) => {
+        const age = calculateAge(profile.birthday);
+        const matches = age !== null && age >= minAge && age <= maxAge;
+        // Debug logs removed
+        if (age === null) return false;
+        return matches;
+    });
+    
+
+    // Get current profile from filtered list
+    const currentProfile = filteredProfiles[currentIndex];
+
     const handleDislike = async () => {
-        const currentProfile = allProfiles[currentIndex];
-        if (!currentProfile || isActionPending) return;
+        const profile = allProfiles[currentIndex];
+        if (!profile || isActionPending) return;
         setActionMessage(null);
         setIsActionPending(true);
         try {
             await authFetch('/api/user/dislike', {
                 method: 'POST',
-                body: { targetUserId: currentProfile.id },
+                body: { targetUserId: profile.id },
             });
             advanceProfiles(currentIndex);
         } catch (dislikeError) {
@@ -94,13 +149,13 @@ export default function DashboardPage() {
 
     const handleLike = async () => {
         setActionMessage(null);
-        const currentProfile = allProfiles[currentIndex];
-        if (!currentProfile || isActionPending) return;
+        const profile = allProfiles[currentIndex];
+        if (!profile || isActionPending) return;
         setIsActionPending(true);
         try {
             await authFetch('/api/user/like', {
                 method: 'POST',
-                body: { targetUserId: currentProfile.id },
+                body: { targetUserId: profile.id },
             });
             advanceProfiles(currentIndex);
         } catch (likeError) {
@@ -115,7 +170,50 @@ export default function DashboardPage() {
         }
     };
 
-    const currentProfile = allProfiles[currentIndex];
+    const handleReport = async (reason) => {
+        const profile = allProfiles[currentIndex];
+        if (!profile || isActionPending) return;
+        setActionMessage(null);
+        setIsActionPending(true);
+        
+        
+        
+        try {
+            const payload = {
+                reportedUserId: profile.id,
+                reason: reason,
+            };
+            
+            
+            // Check if token exists
+            const token = localStorage.getItem('valise_token');
+            if (!token) {
+                throw new Error('No auth token found');
+            }
+            
+            const response = await authFetch('/api/user/report', {
+                method: 'POST',
+                body: payload,
+            });
+            
+            setActionMessage(`✅ Report submitted. ${profile.name}'s account has been flagged for moderation.`);
+            // Move to next profile after reporting
+            setTimeout(() => {
+                advanceProfiles(currentIndex);
+            }, 1500);
+        } catch (reportError) {
+            console.error("[REPORT-FRONTEND] Error:", reportError);
+            console.error("[REPORT-FRONTEND] Error message:", reportError.message);
+            console.error("[REPORT-FRONTEND] Error status:", reportError.status);
+            setActionMessage(reportError.message || "Failed to report profile.");
+            if (reportError.status === 401) {
+                clearAuthToken();
+                router.push('/signin');
+            }
+        } finally {
+            setIsActionPending(false);
+        }
+    };
 
     // --- LOADING AND ERROR STATES ---
 
@@ -141,42 +239,106 @@ export default function DashboardPage() {
 
     // 2. Show No Matches State
     // If we have no profiles after loading, show "No more matches"
-    if (!currentProfile || allProfiles.length === 0) {
+    if (!currentProfile || filteredProfiles.length === 0) {
         return (
             <div className="flex h-screen w-full justify-center items-center text-xl text-gray-500">
-                No more matches! Try checking back later.
+                {filteredProfiles.length === 0 && allProfiles.length > 0 
+                    ? `No matches found in age range ${minAge} - ${maxAge}. Try adjusting filters.`
+                    : 'No more matches! Try checking back later.'}
             </div>
         );
     }
 
     // --- MAIN RENDER ---
     return (
-        <div className="flex flex-1 overflow-hidden bg-gray-50">
+        <div className="flex flex-1 overflow-hidden bg-gray-50 h-screen">
+            <main className="w-full flex flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 md:p-8">
+                {/* Header with Title and Filter Button */}
+                <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
+                        Discover Matches Near You
+                    </h1>
+                    <button
+                        onClick={() => setShowAgeFilter(!showAgeFilter)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition text-sm sm:text-base whitespace-nowrap"
+                    >
+                        {showAgeFilter ? 'Hide Filters' : 'Age Filter'}
+                    </button>
+                </div>
 
-            <div className="flex flex-1 overflow-hidden">
+                {/* Age Filter Section */}
+                {showAgeFilter && (
+                    <div className="w-full max-w-2xl mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md">
+                        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Age Preference</h2>
+                        
+                        <div className="space-y-3 sm:space-y-4">
+                            {/* Min Age Slider */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Minimum Age: <span className="text-blue-600 font-bold">{minAge}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="18"
+                                    max="100"
+                                    value={minAge}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (val <= maxAge) setMinAge(val);
+                                    }}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>18</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
 
-                <main className="w-2/3 p-10 flex flex-col items-center overflow-y-auto">
+                            {/* Max Age Slider */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Maximum Age: <span className="text-blue-600 font-bold">{maxAge}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="18"
+                                    max="100"
+                                    value={maxAge}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (val >= minAge) setMaxAge(val);
+                                    }}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>18</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
 
-                    {/* Show the profile card */}
+                            <p className="text-center text-gray-600 font-medium">
+                                Showing profiles aged {minAge} - {maxAge} years old
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Show the profile card with beautiful layout */}
+                <div className="w-full h-auto md:h-[80vh] min-h-[500px] md:min-h-0">
                     <ProfileCard
                         profile={currentProfile}
                         onLike={handleLike}
                         onSkip={handleDislike}
+                        onReport={handleReport}
                     />
+                </div>
 
-                    {actionMessage && (
-                        <div className="mt-4 px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm">
-                            {actionMessage}
-                        </div>
-                    )}
-
-                    <div className="flex-grow"></div>
-                </main>
-
-                {/* Show the photo gallery */}
-                <PhotoGallery profile={currentProfile} />
-
-            </div>
+                {actionMessage && (
+                    <div className={`mt-4 px-4 py-2 rounded-lg text-sm max-w-2xl ${actionMessage.includes('✅') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {actionMessage}
+                    </div>
+                )}
+            </main>
         </div>
     );
 }

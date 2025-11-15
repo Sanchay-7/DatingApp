@@ -118,7 +118,7 @@ export default function ProfilePage() {
 
     if (isLoading) {
         return (
-            <div className="p-8 h-full bg-gray-50 flex items-center justify-center">
+            <div className="p-8 bg-gray-50 flex items-center justify-center">
                 <p className="text-gray-500 text-lg">Loading your profile...</p>
             </div>
         );
@@ -126,7 +126,7 @@ export default function ProfilePage() {
 
     if (error) {
         return (
-            <div className="p-8 h-full bg-gray-50 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="p-8 bg-gray-50 flex flex-col items-center justify-center text-center space-y-4">
                 <p className="text-xl text-red-500 font-semibold">
                     We hit a snag loading your profile.
                 </p>
@@ -142,7 +142,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="p-8 h-full bg-gray-50">
+        <div className="p-4 md:p-8 bg-gray-50 pb-24 lg:pb-0">
             <h1 className="text-3xl font-extrabold text-gray-900 mb-8">
                 My Profile & Photos
             </h1>

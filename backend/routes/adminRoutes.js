@@ -5,6 +5,10 @@ import {
   approveUser,
   rejectUser,
   getAllUsers,
+  getAnalytics,
+  getModerationQueue,
+  dismissReport,
+  banReportedUser,
 } from "../controllers/adminController.js";
 import { authAdmin } from "../middleware/authAdmin.js"; // Import our new middleware
 
@@ -19,6 +23,18 @@ router.post("/login", adminLogin);
 
 // GET /api/v1/admin/users/pending
 router.get("/users/pending", authAdmin, getPendingUsers);
+
+// GET /api/v1/admin/analytics
+router.get("/analytics", authAdmin, getAnalytics);
+
+// GET /api/v1/admin/moderation
+router.get("/moderation", authAdmin, getModerationQueue);
+
+// POST /api/v1/admin/moderation/dismiss
+router.post("/moderation/dismiss", authAdmin, dismissReport);
+
+// POST /api/v1/admin/moderation/ban
+router.post("/moderation/ban", authAdmin, banReportedUser);
 
 // GET /api/v1/admin/users/all
 router.get("/users/all", authAdmin, getAllUsers);
