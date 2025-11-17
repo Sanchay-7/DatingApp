@@ -18,6 +18,8 @@ const LikedUserCard = ({
     onAccept,
     onReject,
     isProcessing,
+    isOnline,
+    lastActive,
 }) => {
     const resolvedImage = imageUrl || PLACEHOLDER_IMAGE;
     return (
@@ -30,9 +32,17 @@ const LikedUserCard = ({
             style={{ objectFit: 'cover' }}
             className="rounded-xl"
         />
+        
+        {/* Online/Offline Status Indicator */}
+        <div className={`absolute top-3 right-3 flex items-center gap-1.5 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-lg ${
+            isOnline ? 'bg-green-500' : 'bg-gray-500'
+        }`}>
+            <div className={`w-2 h-2 bg-white rounded-full ${isOnline ? 'animate-pulse' : ''}`}></div>
+            {isOnline ? 'Online' : 'Offline'}
+        </div>
 
         {/* Gradient Overlay for text */}
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-linear-to-t from-black/80 to-transparent"></div>
 
         {/* Text Content */}
         <div className="absolute bottom-4 left-4 text-white">
@@ -50,7 +60,7 @@ const LikedUserCard = ({
                 </p>
             )}
         </div>
-        <div className="absolute inset-x-0 bottom-0 p-3 flex justify-between gap-2 bg-gradient-to-t from-black/70 via-black/40 to-transparent">
+        <div className="absolute inset-x-0 bottom-0 p-3 flex justify-between gap-2 bg-linear-to-t from-black/70 via-black/40 to-transparent">
             <button
                 onClick={onReject}
                 disabled={isProcessing}
@@ -247,6 +257,8 @@ export default function LikesYouPage() {
                                 isProcessing={pendingLikeId === user.id}
                                 onAccept={() => handleAccept(user)}
                                 onReject={() => handleReject(user)}
+                                isOnline={user.isOnline}
+                                lastActive={user.lastActive}
                             />
                         ))}
                     </div>

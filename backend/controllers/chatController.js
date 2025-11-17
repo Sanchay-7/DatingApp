@@ -15,6 +15,7 @@ const buildConversationPayload = (conversation, currentUserId) => {
 
   const photos = toArray(otherUser?.photos);
   const firstPhoto = photos.length > 0 ? photos[0] : null;
+  const isOnline = otherUser?.lastActive && (new Date() - new Date(otherUser.lastActive)) < 5 * 60 * 1000;
 
   return {
     id: conversation.id,
@@ -25,6 +26,8 @@ const buildConversationPayload = (conversation, currentUserId) => {
           id: otherUser.id,
           name: otherUser.name || otherUser.firstName || "Valise Member",
           photo: firstPhoto,
+          isOnline,
+          lastActive: otherUser.lastActive,
         }
       : null,
     lastMessage: conversation.messages?.[0]
@@ -83,6 +86,7 @@ export const startConversation = async (req, res) => {
                 name: true,
                 firstName: true,
                 photos: true,
+                lastActive: true,
               },
             },
           },
@@ -130,6 +134,7 @@ export const startConversation = async (req, res) => {
                 name: true,
                 firstName: true,
                 photos: true,
+                lastActive: true,
               },
             },
           },
@@ -184,6 +189,7 @@ export const listConversations = async (req, res) => {
                 name: true,
                 firstName: true,
                 photos: true,
+                lastActive: true,
               },
             },
           },

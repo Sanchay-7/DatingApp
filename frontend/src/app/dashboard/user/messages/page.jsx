@@ -54,6 +54,7 @@ export default function MessagesPage() {
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState(null);
     const [messageError, setMessageError] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
     const messagesEndRef = useRef(null);
 
     const activeConversation = useMemo(
@@ -157,6 +158,17 @@ export default function MessagesPage() {
 
     useEffect(() => {
         loadConversations();
+        
+        // Load current user ID
+        authFetch("/api/user/me")
+            .then((response) => {
+                if (response?.user?.id) {
+                    setCurrentUserId(response.user.id);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch current user:", err);
+            });
     }, [loadConversations]);
 
     useEffect(() => {
@@ -224,7 +236,7 @@ export default function MessagesPage() {
         let isCancelled = false;
 
         const subscribe = async () => {
-            if (!activeConversation) return;
+            if (!activeConversation || !currentUserId) return;
             const key = activeKey;
             if (!key) return;
 
@@ -238,7 +250,7 @@ export default function MessagesPage() {
                         const text = await decryptPayload(key, data);
                         
                         // Check if this is an incoming message (not from the current user)
-                        const isIncomingMessage = data.senderId !== (await authFetch("/api/user/me").then(u => u.user?.id).catch(() => null));
+                        const isIncomingMessage = data.senderId !== currentUserId;
                         
                         // Send notification for incoming message if enabled
                         if (isIncomingMessage) {
@@ -291,7 +303,60 @@ export default function MessagesPage() {
                 channel.unsubscribe("message");
             }
         };
-    }, [activeConversation, activeKey, updateConversationPreview]);
+    }, [activeConversation, activeKey, currentUserId, updateConversationPreview]);
+
+    // Subscribe to all user's conversations for live conversation list updates
+    useEffect(() => {
+        let channels = [];
+        let isCancelled = false;
+
+        const subscribeToAllConversations = async () => {
+            if (!currentUserId || conversations.length === 0) return;
+
+            try {
+                const client = await getChatClient();
+                
+                for (const conversation of conversations) {
+                    const channel = client.channels.get(conversation.channel);
+                    channels.push(channel);
+                    
+                    channel.subscribe("message", async (msg) => {
+                        if (isCancelled || !msg?.data) return;
+                        const data = msg.data;
+                        
+                        // Only update conversation list if this is NOT the active conversation
+                        // (active conversation updates are handled separately)
+                        if (conversation.id !== selectedConversationId) {
+                            try {
+                                const key = conversation.secretKey || loadConversationKey(conversation.id);
+                                if (key) {
+                                    const text = await decryptPayload(key, data);
+                                    updateConversationPreview(conversation.id, data, text);
+                                }
+                            } catch (err) {
+                                console.error("Failed to decrypt conversation preview:", err);
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to subscribe to conversations:", err);
+            }
+        };
+
+        subscribeToAllConversations();
+
+        return () => {
+            isCancelled = true;
+            channels.forEach((channel) => {
+                try {
+                    channel.unsubscribe("message");
+                } catch (err) {
+                    console.error("Failed to unsubscribe:", err);
+                }
+            });
+        };
+    }, [conversations, currentUserId, selectedConversationId, updateConversationPreview]);
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -418,7 +483,7 @@ export default function MessagesPage() {
                                             : "hover:bg-gray-50"
                                     }`}
                                 >
-                                    <div className="w-10 h-10 bg-gray-200 rounded-full mr-3 overflow-hidden">
+                                    <div className="w-10 h-10 bg-gray-200 rounded-full mr-3 overflow-hidden relative">
                                         {conversation.participant?.photo ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
@@ -427,8 +492,11 @@ export default function MessagesPage() {
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : null}
+                                        <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${
+                                            conversation.participant?.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                                        }`}></div>
                                     </div>
-                                    <div className="flex-grow">
+                                    <div className="grow">
                                         <p className="font-semibold text-gray-800">
                                             {conversation.participant?.name ||
                                                 "Conversation"}
@@ -457,11 +525,11 @@ export default function MessagesPage() {
                 </div>
 
                 <div
-                    className={`w-full flex-grow flex flex-col ${
+                    className={`w-full grow flex flex-col ${
                         isListOpenOnMobile ? "hidden lg:flex" : "flex"
                     }`}
                 >
-                    <header className="p-4 border-b border-gray-100 shadow-sm flex items-center flex-shrink-0">
+                    <header className="p-4 border-b border-gray-100 shadow-sm flex items-center shrink-0">
                         <button
                             onClick={() => setSelectedConversationId(null)}
                             className="lg:hidden p-1 mr-3 text-gray-700 hover:text-indigo-600"
@@ -469,15 +537,29 @@ export default function MessagesPage() {
                             <ArrowLeft className="w-6 h-6" />
                         </button>
 
-                        <p className="text-lg font-bold text-gray-800">
-                            {activeConversation
-                                ? activeConversation.participant?.name ||
-                                  "Chat"
-                                : "Select a conversation"}
-                        </p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-lg font-bold text-gray-800">
+                                {activeConversation
+                                    ? activeConversation.participant?.name ||
+                                      "Chat"
+                                    : "Select a conversation"}
+                            </p>
+                            {activeConversation?.participant && (
+                                <span className={`flex items-center gap-1.5 text-xs font-medium ${
+                                    activeConversation.participant.isOnline ? 'text-green-600' : 'text-gray-500'
+                                }`}>
+                                    <div className={`w-2 h-2 rounded-full ${
+                                        activeConversation.participant.isOnline 
+                                            ? 'bg-green-500 animate-pulse' 
+                                            : 'bg-gray-400'
+                                    }`}></div>
+                                    {activeConversation.participant.isOnline ? 'Online' : 'Offline'}
+                                </span>
+                            )}
+                        </div>
                     </header>
 
-                    <div className="overflow-y-auto p-6 space-y-4 flex-grow">
+                    <div className="overflow-y-auto p-6 space-y-4 grow">
                         {messageError && (
                             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                                 {messageError}
@@ -511,11 +593,11 @@ export default function MessagesPage() {
                                 </div>
                             ))
                         ) : activeConversation ? (
-                            <p className="p-4 text-sm text-gray-500 text-center flex-grow flex items-center justify-center">
+                            <p className="p-4 text-sm text-gray-500 text-center grow flex items-center justify-center">
                                 No messages yet. Say hi!
                             </p>
                         ) : (
-                            <p className="p-4 text-sm text-gray-500 text-center flex-grow flex items-center justify-center">
+                            <p className="p-4 text-sm text-gray-500 text-center grow flex items-center justify-center">
                                 Select a conversation to start chatting.
                             </p>
                         )}
@@ -524,7 +606,7 @@ export default function MessagesPage() {
 
                     <form
                         onSubmit={handleSubmit}
-                        className={`border-t p-4 flex space-x-2 bg-white flex-shrink-0 ${
+                        className={`border-t p-4 flex space-x-2 bg-white shrink-0 ${
                             !activeConversation ? "opacity-50 pointer-events-none" : ""
                         }`}
                     >
@@ -533,7 +615,7 @@ export default function MessagesPage() {
                             placeholder="Type a message..."
                             value={input}
                             onChange={(event) => setInput(event.target.value)}
-                            className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500 text-gray-900"
+                            className="grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500 text-gray-900"
                             disabled={!activeConversation}
                         />
                         <button

@@ -271,6 +271,7 @@ export const getUserLikes = async (req, res) => {
             birthday: true,
             photos: true,
             preferences: true,
+            lastActive: true,
           },
         },
       },
@@ -280,6 +281,7 @@ export const getUserLikes = async (req, res) => {
       const liker = entry.fromUser;
       const prefs = parsePreferences(liker.preferences);
       const photos = toArray(liker.photos);
+      const isOnline = liker.lastActive && (new Date() - new Date(liker.lastActive)) < 5 * 60 * 1000; // Online if active within 5 minutes
       return {
         id: entry.id,
         userId: liker.id,
@@ -288,6 +290,8 @@ export const getUserLikes = async (req, res) => {
         imageUrl: photos[0] || null,
         interests: toArray(prefs.interests),
         likedAt: entry.createdAt,
+        isOnline,
+        lastActive: liker.lastActive,
       };
     });
 
@@ -445,6 +449,15 @@ export const recordDislike = async (req, res) => {
     if (!targetUser) {
       return res.status(404).json({ error: "Target user not found" });
     }
+
+    // Delete any existing like from the target user to the current user
+    // This ensures rejected users disappear from the "Who Likes You" page
+    await prisma.like.deleteMany({
+      where: {
+        fromUserId: targetUserId,
+        toUserId: userId,
+      },
+    });
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

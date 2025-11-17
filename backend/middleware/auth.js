@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import prisma from "../config/db.js";
 
 export const authMiddleware = (req, res, next) => {
   try {
@@ -21,6 +22,12 @@ export const authMiddleware = (req, res, next) => {
 
     req.user = decoded;
     console.log(`[AUTH-MIDDLEWARE] ✓ Authenticated user ID: ${decoded.id}`);
+    
+    // Update lastActive timestamp (fire and forget)
+    prisma.user.update({
+      where: { id: decoded.id },
+      data: { lastActive: new Date() }
+    }).catch(() => {}); // Silently fail if update doesn't work
 
     next();
   } catch (err) {
