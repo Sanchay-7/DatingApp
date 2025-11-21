@@ -70,3 +70,20 @@ export const clearAuthToken = () => {
   }
 };
 
+//  if (!response.ok) {
+//     const message =
+//       data?.error ||
+//       data?.message ||
+//       `Request failed with status ${response.status}`;
+//     throw new ApiError(message, response.status);
+//   }
+
+//   return data;
+// };
+
+// export const clearAuthToken = () => {
+//   if (typeof window !== "undefined") {
+//     window.localStorage.removeItem("valise_token");
+//   }
+// };
+
