@@ -1,8 +1,6 @@
 // firebase.js
-import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-} from "firebase/auth";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,7 +12,18 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Only initialize Firebase on the client side
+let app;
+let auth;
+
+if (typeof window !== 'undefined') {
+  // Initialize Firebase only if it hasn't been initialized yet
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+  auth = getAuth(app);
+}
 
 export { auth };
