@@ -1,0 +1,123 @@
+{
+  "SecurityGroups": [
+    {
+      "Name": "dating-alb-sg",
+      "Description": "Security group for Application Load Balancer",
+      "InboundRules": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 443,
+          "ToPort": 443,
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow HTTPS from anywhere"
+        },
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 80,
+          "ToPort": 80,
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow HTTP from anywhere (redirect to HTTPS)"
+        }
+      ],
+      "OutboundRules": [
+        {
+          "IpProtocol": "-1",
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow all outbound traffic"
+        }
+      ]
+    },
+    {
+      "Name": "dating-backend-sg",
+      "Description": "Security group for backend ECS tasks",
+      "InboundRules": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 5000,
+          "ToPort": 5000,
+          "SourceSecurityGroupName": "dating-alb-sg",
+          "Description": "Allow traffic from ALB"
+        }
+      ],
+      "OutboundRules": [
+        {
+          "IpProtocol": "-1",
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow all outbound traffic"
+        }
+      ]
+    },
+    {
+      "Name": "dating-frontend-sg",
+      "Description": "Security group for frontend ECS tasks",
+      "InboundRules": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 3000,
+          "ToPort": 3000,
+          "SourceSecurityGroupName": "dating-alb-sg",
+          "Description": "Allow traffic from ALB"
+        }
+      ],
+      "OutboundRules": [
+        {
+          "IpProtocol": "-1",
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow all outbound traffic"
+        }
+      ]
+    },
+    {
+      "Name": "dating-rds-sg",
+      "Description": "Security group for RDS PostgreSQL",
+      "InboundRules": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 5432,
+          "ToPort": 5432,
+          "SourceSecurityGroupName": "dating-backend-sg",
+          "Description": "Allow PostgreSQL from backend tasks"
+        }
+      ],
+      "OutboundRules": []
+    },
+    {
+      "Name": "dating-bastion-sg",
+      "Description": "Security group for bastion host (optional)",
+      "InboundRules": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 22,
+          "ToPort": 22,
+          "CidrIp": "YOUR_IP_ADDRESS/32",
+          "Description": "Allow SSH from your IP only"
+        }
+      ],
+      "OutboundRules": [
+        {
+          "IpProtocol": "-1",
+          "CidrIp": "0.0.0.0/0",
+          "Description": "Allow all outbound traffic"
+        }
+      ]
+    }
+  ],
+  "CreationCommands": [
+    "# Create ALB Security Group",
+    "aws ec2 create-security-group --group-name dating-alb-sg --description 'Security group for Application Load Balancer' --vpc-id <VPC_ID>",
+    "aws ec2 authorize-security-group-ingress --group-id <ALB_SG_ID> --protocol tcp --port 443 --cidr 0.0.0.0/0",
+    "aws ec2 authorize-security-group-ingress --group-id <ALB_SG_ID> --protocol tcp --port 80 --cidr 0.0.0.0/0",
+    "",
+    "# Create Backend Security Group",
+    "aws ec2 create-security-group --group-name dating-backend-sg --description 'Security group for backend ECS tasks' --vpc-id <VPC_ID>",
+    "aws ec2 authorize-security-group-ingress --group-id <BACKEND_SG_ID> --protocol tcp --port 5000 --source-group <ALB_SG_ID>",
+    "",
+    "# Create Frontend Security Group",
+    "aws ec2 create-security-group --group-name dating-frontend-sg --description 'Security group for frontend ECS tasks' --vpc-id <VPC_ID>",
+    "aws ec2 authorize-security-group-ingress --group-id <FRONTEND_SG_ID> --protocol tcp --port 3000 --source-group <ALB_SG_ID>",
+    "",
+    "# Create RDS Security Group",
+    "aws ec2 create-security-group --group-name dating-rds-sg --description 'Security group for RDS PostgreSQL' --vpc-id <VPC_ID>",
+    "aws ec2 authorize-security-group-ingress --group-id <RDS_SG_ID> --protocol tcp --port 5432 --source-group <BACKEND_SG_ID>"
+  ]
+}

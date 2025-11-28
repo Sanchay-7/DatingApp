@@ -60,6 +60,11 @@ model User {
   // --- ADDED THESE RELATIONS ---
   reportsSent     Report[] @relation("reportsSent")
   reportsReceived Report[] @relation("reportsReceived")
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([accountStatus])
+  @@index([lastActive])
 }
 
 model Like {
@@ -69,6 +74,11 @@ model Like {
   toUser     User     @relation("likesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
   toUserId   String
   createdAt  DateTime @default(now())
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([createdAt])
+  @@unique([fromUserId, toUserId])
 }
 
 model Conversation {
@@ -77,6 +87,8 @@ model Conversation {
   createdAt    DateTime                  @default(now())
   participants ConversationParticipant[]
   messages     Message[]
+
+  @@index([createdAt])
 }
 
 model ConversationParticipant {
@@ -88,6 +100,8 @@ model ConversationParticipant {
   createdAt      DateTime     @default(now())
 
   @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
 }
 
 model Message {
@@ -100,6 +114,10 @@ model Message {
   iv             String
   authTag        String
   createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
 }
 
 // --- ADDED NEW ADMIN MODEL ---
@@ -128,4 +146,9 @@ model Report {
   // Who was reported
   reportedUser   User         @relation("reportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
   reportedUserId String
+
+  @@index([status])
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([createdAt])
 }

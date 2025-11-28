@@ -1,6 +1,7 @@
 'use client';
 
 import React, {
+    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -29,7 +30,7 @@ const loadConversationKey = (conversationId) => {
 
 const decryptMessages = async (messages, key) => {
     return Promise.all(
-        messages.map(async (msg) => {
+    decryptMessages.map(async (msg) => {
             try {
                 const text = await decryptPayload(key, msg);
                 return { ...msg, text };
@@ -41,7 +42,7 @@ const decryptMessages = async (messages, key) => {
     );
 };
 
-export default function MessagesPage() {
+function MessagesPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -629,5 +630,20 @@ export default function MessagesPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function MessagesPage() {
+    return (
+        <Suspense fallback={
+            <div className="p-4 md:p-8 h-full bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading messages...</p>
+                </div>
+            </div>
+        }>
+            <MessagesPageContent />
+        </Suspense>
     );
 }
