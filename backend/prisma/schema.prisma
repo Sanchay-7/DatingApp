@@ -7,8 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ADDED THIS ENUM ---
-// Defines the possible states for a user account
+// --- ENUMS ---
 enum AccountStatus {
   PENDING_APPROVAL
   ACTIVE
@@ -16,13 +15,12 @@ enum AccountStatus {
   BANNED
 }
 
-// --- ADDED THIS ENUM ---
-// Defines the status of a user-submitted report
 enum ReportStatus {
   PENDING
   RESOLVED
 }
 
+// --- MODELS ---
 model User {
   id          String   @id @default(uuid())
   firstName   String
@@ -30,10 +28,8 @@ model User {
   phoneNumber String   @unique
   password    String
 
-  // --- REPLACED 'isVerified' WITH THIS ---
   accountStatus AccountStatus @default(PENDING_APPROVAL)
 
-  // ✅ Profile fields
   name            String?
   birthday        DateTime?
   gender          String?
@@ -42,11 +38,9 @@ model User {
   hometown        String?
   currentLocation String?
 
-  // ✅ JSON fields
   photos        Json?
   preferences   Json?
-  
-  // ✅ Last active timestamp for online status
+
   lastActive  DateTime? @default(now())
 
   createdAt DateTime @default(now())
@@ -57,9 +51,10 @@ model User {
   conversations ConversationParticipant[]
   messages      Message[]  @relation("messageSender")
 
-  // --- ADDED THESE RELATIONS ---
   reportsSent     Report[] @relation("reportsSent")
   reportsReceived Report[] @relation("reportsReceived")
+
+  payments Payment[]
 
   @@index([email])
   @@index([phoneNumber])
@@ -75,10 +70,10 @@ model Like {
   toUserId   String
   createdAt  DateTime @default(now())
 
+  @@unique([fromUserId, toUserId])
   @@index([fromUserId])
   @@index([toUserId])
   @@index([createdAt])
-  @@unique([fromUserId, toUserId])
 }
 
 model Conversation {
@@ -120,35 +115,44 @@ model Message {
   @@index([createdAt])
 }
 
-// --- ADDED NEW ADMIN MODEL ---
-// This table stores admin accounts, separate from users
 model Admin {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   name      String
-  role      String   @default("admin") // e.g., "admin", "superadmin"
+  role      String   @default("admin")
   createdAt DateTime @default(now())
 }
 
-// --- ADDED NEW REPORT MODEL ---
-// This table stores user reports for moderation
 model Report {
   id             String       @id @default(uuid())
   reason         String
   status         ReportStatus @default(PENDING)
   createdAt      DateTime     @default(now())
-  
-  // Who reported it
-  reporter       User         @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  reporter       User @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
   reporterId     String
-  
-  // Who was reported
-  reportedUser   User         @relation("reportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  reportedUser   User @relation("reportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
   reportedUserId String
 
   @@index([status])
   @@index([reporterId])
   @@index([reportedUserId])
   @@index([createdAt])
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+
+  orderId       String   @unique
+  cfPaymentId   String?
+  amount        Float
+  currency      String   @default("INR")
+  status        String   @default("PENDING")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
