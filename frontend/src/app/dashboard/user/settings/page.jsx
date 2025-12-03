@@ -18,6 +18,7 @@ const MIN_AGE_LIMIT = 18;
 
 export default function SettingsPage() {
     const [settings, setSettings] = useState(null);
+    const [currentLocation, setCurrentLocation] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [feedback, setFeedback] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -31,12 +32,16 @@ export default function SettingsPage() {
         const loadSettings = async () => {
             setIsLoading(true);
             try {
-                const data = await authFetch("/api/user/settings");
+                const [settingsData, meData] = await Promise.all([
+                    authFetch("/api/user/settings"),
+                    authFetch("/api/user/me"),
+                ]);
                 if (isMounted) {
                     setSettings({
                         ...DEFAULT_SETTINGS,
-                        ...(data.settings || {}),
+                        ...(settingsData.settings || {}),
                     });
+                    setCurrentLocation(meData?.user?.currentLocation || null);
                     setFeedback(null);
                 }
             } catch (error) {
@@ -166,6 +171,28 @@ export default function SettingsPage() {
             });
     };
 
+    const refreshLocation = async () => {
+        setFeedback(null);
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            setFeedback("Geolocation not supported by browser");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                await authFetch("/api/user/update-location", {
+                    method: "PUT",
+                    body: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+                });
+                setCurrentLocation(`${pos.coords.latitude},${pos.coords.longitude}`);
+                setFeedback("Location updated");
+            } catch (err) {
+                setFeedback(err.message || "Failed to update location");
+            }
+        }, (err) => {
+            setFeedback(err?.message || "Location permission denied");
+        });
+    };
+
     const deleteAccount = async () => {
         if (!deletePassword) {
             setFeedback("Please enter your password to delete your account");
@@ -219,6 +246,15 @@ export default function SettingsPage() {
                     <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
                         <Sliders className="w-6 h-6 mr-3 text-pink-600" /> Discovery Preferences
                     </h2>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600">Current location</p>
+                            <p className="text-gray-900 text-sm font-medium">{currentLocation || 'Unknown'}</p>
+                        </div>
+                        <button type="button" onClick={refreshLocation} className="px-3 py-2 text-sm rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">
+                            Refresh Location
+                        </button>
+                    </div>
                     <div className="mb-6">
                         <label htmlFor="maxDistance" className="block text-lg font-medium text-gray-700 mb-2">
                             Maximum Distance: <span className="text-pink-600 font-bold">{settings.maxDistance} km</span>

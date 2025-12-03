@@ -14,6 +14,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 const app = express();
 
@@ -36,10 +37,23 @@ if (process.env.NODE_ENV === 'production') {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 300, // Relaxed: allow more requests per window
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip preflight and lightweight user reads to avoid throttling the app shell
+  skip: (req) => {
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
+    // Allow common user dashboard reads without counting towards rate limit
+    if (req.method === 'GET' && (
+      req.path.startsWith('/api/user/me') ||
+      req.path.startsWith('/api/user/settings') ||
+      req.path.startsWith('/api/user/dashboard')
+    )) {
+      return true;
+    }
+    return false;
+  },
 });
 app.use('/api/', limiter);
 
@@ -48,6 +62,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many authentication attempts, please try again later.',
+  skip: (req) => req.method === 'OPTIONS' || req.method === 'HEAD',
 });
 app.use('/api/auth/signin', authLimiter);
 app.use('/api/auth/signup', authLimiter);
@@ -63,6 +78,7 @@ app.use(
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+  // CORS must be configured before any rate limiting to avoid 429 on preflight
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -82,6 +98,7 @@ app.get("/health", (req, res) => {
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  // Rate limiting (skip preflight OPTIONS/HEAD requests)
   });
 });
 
@@ -98,6 +115,7 @@ app.get("/", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/report", reportRoutes);
 
 // --- THIS IS THE FIX ---
 // This ensures your server listens for /api/user/* to match your frontend

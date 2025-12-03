@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, CheckSquare } from 'lucide-react';
+import { ShieldAlert, CheckSquare, MessageCircle } from 'lucide-react';
 import ImageComponent from 'next/image';
 // IMPORT THE NEW COMPONENT
 import AdminCard from '@/components/AdminCard';
@@ -10,7 +10,7 @@ import AdminCard from '@/components/AdminCard';
 // Dummy data for moderation queue - REMOVED
 
 // Reusable Moderation Card Component
-const ModerationCard = ({ item, onDismiss, onBan, isProcessing }) => {
+const ModerationCard = ({ item, onDismiss, onBan, isProcessing, onViewDetail }) => {
     const hasPhoto = item.content && item.content.length > 0;
     
     return (
@@ -56,6 +56,13 @@ const ModerationCard = ({ item, onDismiss, onBan, isProcessing }) => {
                 >
                     {isProcessing ? 'Processing...' : 'Ban User'}
                 </button>
+                <button
+                    onClick={() => onViewDetail(item.id)}
+                    disabled={isProcessing}
+                    className="flex-1 py-2 px-4 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 transition"
+                >
+                    <span className="inline-flex items-center gap-2"><MessageCircle className="w-4 h-4"/> View Chat</span>
+                </button>
             </div>
         </AdminCard>
     );
@@ -69,6 +76,7 @@ export default function ModerationPage() {
     const [lastRefresh, setLastRefresh] = useState(new Date());
     const [processingReportId, setProcessingReportId] = useState(null);
     const [actionMessage, setActionMessage] = useState(null);
+    const [detail, setDetail] = useState(null);
 
     const fetchQueue = async () => {
         const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
@@ -188,6 +196,25 @@ export default function ModerationPage() {
         }
     };
 
+    const handleViewDetail = async (reportId) => {
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+        try {
+            const token = localStorage.getItem('admin_token');
+            if (!token) {
+                window.location.href = '/admin/login';
+                return;
+            }
+            const res = await fetch(`${API_BASE}/api/v1/admin/reports/${reportId}/detail`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch detail');
+            setDetail(data);
+        } catch (err) {
+            setActionMessage(`Error: ${err.message}`);
+        }
+    };
+
     useEffect(() => {
         fetchQueue();
         // Auto-refresh every 10 seconds
@@ -199,10 +226,18 @@ export default function ModerationPage() {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-white mb-6 flex items-center">
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold text-white flex items-center">
                 <ShieldAlert className="w-7 h-7 mr-3 text-red-500" />
                 Content Moderation Queue
-            </h1>
+                </h1>
+                <button
+                    onClick={() => { localStorage.removeItem('admin_token'); window.location.href = '/admin/login'; }}
+                    className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white"
+                >
+                    Logout
+                </button>
+            </div>
 
             {/* Action Message */}
             {actionMessage && (
@@ -248,6 +283,7 @@ export default function ModerationPage() {
                                 onDismiss={handleDismiss}
                                 onBan={handleBan}
                                 isProcessing={processingReportId === item.id}
+                                onViewDetail={handleViewDetail}
                             />
                         ))
                     ) : (
@@ -256,6 +292,50 @@ export default function ModerationPage() {
                             <p className="text-xl text-gray-300">Queue Cleared! No pending moderation items.</p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Detail Modal */}
+            {detail && (
+                <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl w-full max-w-3xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Report Detail</h2>
+                            <button onClick={() => setDetail(null)} className="px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200">Close</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="border rounded-lg p-3">
+                                <h3 className="font-semibold mb-2">Reporter</h3>
+                                <p className="text-sm">{detail.reporter?.name || detail.reporter?.firstName || detail.reporter?.email}</p>
+                                {Array.isArray(detail.reporter?.photos) && detail.reporter.photos[0] && (
+                                    <img src={detail.reporter.photos[0]} alt="Reporter" className="mt-2 w-full h-40 object-cover rounded"/>
+                                )}
+                            </div>
+                            <div className="border rounded-lg p-3">
+                                <h3 className="font-semibold mb-2">Reported User</h3>
+                                <p className="text-sm">{detail.reportedUser?.name || detail.reportedUser?.firstName || detail.reportedUser?.email}</p>
+                                {Array.isArray(detail.reportedUser?.photos) && detail.reportedUser.photos[0] && (
+                                    <img src={detail.reportedUser.photos[0]} alt="Reported" className="mt-2 w-full h-40 object-cover rounded"/>
+                                )}
+                            </div>
+                        </div>
+                        <div className="border rounded-lg p-3 mb-4">
+                            <h3 className="font-semibold mb-2">Conversation</h3>
+                            {detail.messages && detail.messages.length > 0 ? (
+                                <div className="space-y-2 max-h-80 overflow-y-auto">
+                                    {detail.messages.map(m => (
+                                        <div key={m.id} className="flex justify-between text-sm">
+                                            <span className="font-mono text-gray-600">{new Date(m.createdAt).toLocaleString()}</span>
+                                            <span className="font-semibold">{m.senderId === detail.reporter?.id ? 'Reporter' : m.senderId === detail.reportedUser?.id ? 'Reported' : m.senderId}</span>
+                                            <span className="ml-4 truncate max-w-[60%] text-gray-800">{m.plaintext ? m.plaintext : (m.ciphertext ? '[Encrypted]' : '[No content]')}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-600">No shared conversation found.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

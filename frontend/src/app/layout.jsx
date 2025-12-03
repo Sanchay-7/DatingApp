@@ -3,6 +3,7 @@
 // Import global styles and font dependencies
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import LocationUpdater from "@/components/LocationUpdater";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
+                <LocationUpdater />
                 {children}
             </body>
         </html>

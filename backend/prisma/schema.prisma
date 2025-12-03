@@ -138,6 +138,10 @@ model Report {
   reason         String
   status         ReportStatus @default(PENDING)
   createdAt      DateTime     @default(now())
+  // Optional context
+  conversationId String?
+  messageId      String?
+  messageText    String?
   
   // Who reported it
   reporter       User         @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
@@ -151,4 +155,6 @@ model Report {
   @@index([reporterId])
   @@index([reportedUserId])
   @@index([createdAt])
+  @@index([conversationId])
+  @@index([messageId])
 }

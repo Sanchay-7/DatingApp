@@ -96,6 +96,14 @@ export default function ProfileCard({ profile, onLike, onSkip, onReport }) {
                                         <Heart className="w-5 h-5 fill-current" />
                                         Like
                                     </button>
+                                    <button
+                                        onClick={() => setShowReportModal(true)}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-red-100 text-red-600 font-semibold py-2 rounded-full shadow"
+                                        title="Report this profile"
+                                    >
+                                        <AlertCircle className="w-5 h-5" />
+                                        Report
+                                    </button>
                                 </div>
                             </div>
                         </div>

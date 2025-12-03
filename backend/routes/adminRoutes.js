@@ -10,6 +10,7 @@ import {
   dismissReport,
   banReportedUser,
 } from "../controllers/adminController.js";
+import { listReports, actOnReport, getReportDetail } from "../controllers/reportController.js";
 import { authAdmin } from "../middleware/authAdmin.js"; // Import our new middleware
 
 const router = express.Router();
@@ -29,6 +30,10 @@ router.get("/analytics", authAdmin, getAnalytics);
 
 // GET /api/v1/admin/moderation
 router.get("/moderation", authAdmin, getModerationQueue);
+// Reports listing and actions
+router.get("/reports", authAdmin, listReports);
+router.post("/reports/:id/action", authAdmin, actOnReport);
+router.get("/reports/:id/detail", authAdmin, getReportDetail);
 
 // POST /api/v1/admin/moderation/dismiss
 router.post("/moderation/dismiss", authAdmin, dismissReport);
