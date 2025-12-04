@@ -131,6 +131,13 @@ model Report {
   createdAt      DateTime     @default(now())
 
   reporter       User @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
+  // Optional context
+  conversationId String?
+  messageId      String?
+  messageText    String?
+  
+  // Who reported it
+  reporter       User         @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
   reporterId     String
 
   reportedUser   User @relation("reportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
@@ -155,4 +162,7 @@ model Payment {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+  @@index([conversationId])
+  @@index([messageId])
 }

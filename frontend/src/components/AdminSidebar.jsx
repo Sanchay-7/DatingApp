@@ -59,7 +59,7 @@ export default function AdminSidebar() {
                     <p className="text-sm text-gray-300">Administrator</p>
                 </div>
 
-                <button className="w-auto lg:w-full p-2 lg:p-3 rounded-lg text-sm bg-red-600 hover:bg-red-700 transition flex items-center justify-center lg:space-x-2">
+                <button onClick={() => { localStorage.removeItem('admin_token'); window.location.href = '/admin/login'; }} className="w-auto lg:w-full p-2 lg:p-3 rounded-lg text-sm bg-red-600 hover:bg-red-700 transition flex items-center justify-center lg:space-x-2">
                     <LogOut className="w-5 h-5 lg:w-4 lg:h-4" />
                     <span className="hidden lg:inline">Logout</span>
                 </button>

@@ -313,6 +313,7 @@ export const getDashboardData = async (req, res) => {
       select: {
         gender: true,
         preferences: true,
+        currentLocation: true,
         likesSent: {
           select: { toUserId: true },
         },
@@ -404,6 +405,33 @@ export const getDashboardData = async (req, res) => {
       take: 50,
     });
 
+    // Helper: parse "lat,lng" string into numeric tuple
+    const parseCoords = (loc) => {
+      if (!loc || typeof loc !== 'string') return null;
+      const parts = loc.split(',');
+      if (parts.length !== 2) return null;
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+      return { lat, lng };
+    };
+
+    // Helper: haversine distance in km
+    const haversineKm = (a, b) => {
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const R = 6371; // Earth radius km
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+      return R * c;
+    };
+
+    const viewerCoords = parseCoords(currentUser.currentLocation);
+    const maxDistanceKm = Number(parsePreferences(currentUser.preferences)?.settings?.maxDistance) || DEFAULT_SETTINGS.maxDistance;
+
     const recommendations = candidates
       .filter((candidate) => !dislikedIds.has(candidate.id))
       .filter((candidate) => !likedUserIds.has(candidate.id))
@@ -413,6 +441,14 @@ export const getDashboardData = async (req, res) => {
           candidatePrefs.interestedIn,
           currentUser.gender
         );
+      })
+      .filter((candidate) => {
+        // Distance filter only if both have coordinates
+        if (!viewerCoords) return true;
+        const candidateCoords = parseCoords(candidate.currentLocation);
+        if (!candidateCoords) return true;
+        const d = haversineKm(viewerCoords, candidateCoords);
+        return d <= maxDistanceKm;
       })
       .map(formatRecommendationProfile);
 
@@ -731,5 +767,25 @@ export const reportUser = async (req, res) => {
   } catch (err) {
     console.error("Report user error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// Update current geolocation (expects lat,lng numbers)
+export const updateLocation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({ error: 'lat and lng must be numbers' });
+    }
+    const locString = `${lat},${lng}`;
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { currentLocation: locString },
+    });
+    return res.status(200).json({ success: true, location: updated.currentLocation });
+  } catch (err) {
+    console.error('Update location error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 };

@@ -14,6 +14,7 @@ import {
   recordLike,
   deleteAccount,
   reportUser,
+  updateLocation,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -41,6 +42,7 @@ router.post(
 );
 router.put("/update-profile", authMiddleware, updateProfile);
 router.put("/update-preferences", authMiddleware, updatePreferences);
+router.put("/update-location", authMiddleware, updateLocation);
 router.get("/me", authMiddleware, getMyProfile);
 router.get("/settings", authMiddleware, getUserSettings);
 router.get("/likes", authMiddleware, getUserLikes);

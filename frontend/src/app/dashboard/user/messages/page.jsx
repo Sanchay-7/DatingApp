@@ -8,7 +8,7 @@ import React, {
     useRef,
     useState,
 } from "react";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, AlertCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authFetch, clearAuthToken } from "@/lib/apiClient";
 import { decryptPayload } from "@/lib/crypto";
@@ -30,7 +30,7 @@ const loadConversationKey = (conversationId) => {
 
 const decryptMessages = async (messages, key) => {
     return Promise.all(
-    decryptMessages.map(async (msg) => {
+        messages.map(async (msg) => {
             try {
                 const text = await decryptPayload(key, msg);
                 return { ...msg, text };
@@ -64,6 +64,19 @@ function MessagesPageContent() {
             null,
         [conversations, selectedConversationId]
     );
+
+    // Determine the other participant's user id robustly for alignment and labeling
+    const otherUserId = useMemo(() => {
+        if (!activeConversation) return null;
+        // Prefer nested participant.user.id if present
+        const nestedId = activeConversation?.participant?.user?.id || activeConversation?.participant?.id || null;
+        if (nestedId) return nestedId;
+        // Fallback: search participants list for a user different from currentUserId
+        const found = (activeConversation.participants || [])
+            .map(p => p?.user?.id || p?.id)
+            .find(id => id && id !== currentUserId);
+        return found || null;
+    }, [activeConversation, currentUserId]);
 
     const activeKey = useMemo(() => {
         if (!activeConversation) return null;
@@ -530,7 +543,7 @@ function MessagesPageContent() {
                         isListOpenOnMobile ? "hidden lg:flex" : "flex"
                     }`}
                 >
-                    <header className="p-4 border-b border-gray-100 shadow-sm flex items-center shrink-0">
+                    <header className="p-4 border-b border-gray-100 shadow-sm flex items-center justify-between shrink-0">
                         <button
                             onClick={() => setSelectedConversationId(null)}
                             className="lg:hidden p-1 mr-3 text-gray-700 hover:text-indigo-600"
@@ -539,12 +552,13 @@ function MessagesPageContent() {
                         </button>
 
                         <div className="flex items-center gap-3">
-                            <p className="text-lg font-bold text-gray-800">
-                                {activeConversation
-                                    ? activeConversation.participant?.name ||
-                                      "Chat"
-                                    : "Select a conversation"}
-                            </p>
+                                                        <p className="text-lg font-bold text-gray-800">
+                                                                {activeConversation
+                                                                        ? activeConversation.participant?.name ||
+                                                                            activeConversation.participants?.find(p => (p.user?.id || p.id) === otherUserId)?.user?.name ||
+                                                                            "Chat"
+                                                                        : "Select a conversation"}
+                                                        </p>
                             {activeConversation?.participant && (
                                 <span className={`flex items-center gap-1.5 text-xs font-medium ${
                                     activeConversation.participant.isOnline ? 'text-green-600' : 'text-gray-500'
@@ -558,6 +572,33 @@ function MessagesPageContent() {
                                 </span>
                             )}
                         </div>
+
+                        {otherUserId && (
+                            <button
+                                onClick={async () => {
+                                    const reason = window.prompt("Report reason (e.g., harassment, spam)");
+                                    if (!reason) return;
+                                    try {
+                                        await authFetch("/api/report", {
+                                            method: "POST",
+                                            body: {
+                                                reportedUserId: otherUserId,
+                                                reason,
+                                                conversationId: activeConversation.id,
+                                            },
+                                        });
+                                        alert("Report submitted");
+                                    } catch (err) {
+                                        alert(err.message || "Failed to submit report");
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                                title="Report user"
+                            >
+                                <AlertCircle className="w-4 h-4" />
+                                Report
+                            </button>
+                        )}
                     </header>
 
                     <div className="overflow-y-auto p-6 space-y-4 grow">
@@ -576,15 +617,14 @@ function MessagesPageContent() {
                                 <div
                                     key={msg.id}
                                     className={`flex ${
-                                        msg.senderId === activeConversation?.participant?.id
+                                        msg.senderId === otherUserId
                                             ? "justify-start"
                                             : "justify-end"
                                     }`}
                                 >
                                     <div
                                         className={`p-3 rounded-xl max-w-xs ${
-                                            msg.senderId ===
-                                            activeConversation?.participant?.id
+                                            msg.senderId === otherUserId
                                                 ? "bg-gray-200 text-gray-800 rounded-tl-none"
                                                 : "bg-indigo-600 text-white rounded-tr-none"
                                         }`}

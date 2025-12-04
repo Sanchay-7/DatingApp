@@ -24,6 +24,25 @@ export default function SignIn() {
       const data = await res.json();
       if (!res.ok) return alert(data.error || "Login failed");
       localStorage.setItem("valise_token", data.token);
+      // Try to capture geolocation on login and send to backend
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const token = localStorage.getItem('valise_token');
+            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/update-location`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              credentials: 'include',
+              body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            });
+          } catch (e) {
+            // Non-blocking
+          }
+        });
+      }
       setShowToast(true);
       setTimeout(() => {
         setShowToast(false);
