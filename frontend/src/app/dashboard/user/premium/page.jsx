@@ -9,42 +9,21 @@ const PREMIUM_TIERS = [
   {
     id: 'PREMIUM',
     name: 'Premium',
-    price: 1999,
-    priceMonthly: 1999,
-    description: 'Unlock premium features to enhance your dating experience',
-    color: 'from-amber-400 to-amber-600',
+    price: 49,
+    priceMonthly: 49,
+    description: 'Get unlimited likes and enhanced features',
+    color: 'from-purple-500 to-purple-700',
     features: [
-      { name: '30 likes per day', premium: true, boost: false },
-      { name: '2 backtracks per day', premium: true, boost: false },
-      { name: 'See who likes you (Beeline)', premium: true, boost: true },
-      { name: 'Advanced filters', premium: true, boost: true },
-      { name: 'Incognito mode', premium: true, boost: true },
-      { name: '5 SuperSwipes per week', premium: true, boost: true },
-      { name: '1 Spotlight per month', premium: true, boost: true },
-      { name: 'Unlimited Extends', premium: true, boost: true },
-      { name: 'Unlimited Rematch', premium: true, boost: true },
-      { name: 'Priority support', premium: true, boost: true },
-    ],
-    isBest: false,
-  },
-  {
-    id: 'BOOST',
-    name: 'Boost',
-    price: 2999,
-    priceMonthly: 2999,
-    description: 'Get unlimited access and swipe anywhere in the world',
-    color: 'from-purple-400 to-purple-600',
-    features: [
-      { name: '✨ Unlimited likes', premium: false, boost: true },
-      { name: '✨ Unlimited backtracks', premium: false, boost: true },
-      { name: '✨ Travel mode - Swipe anywhere', premium: false, boost: true },
-      { name: 'See who likes you (Beeline)', premium: true, boost: true },
-      { name: 'Advanced filters', premium: true, boost: true },
-      { name: 'Incognito mode', premium: true, boost: true },
-      { name: '5 SuperSwipes per week', premium: true, boost: true },
-      { name: '1 Spotlight per month', premium: true, boost: true },
-      { name: 'Unlimited Extends', premium: true, boost: true },
-      { name: 'Unlimited Rematch', premium: true, boost: true },
+      { name: 'Unlimited likes per day', boost: true },
+      { name: 'Unlimited backtracks', boost: true },
+      { name: 'See who likes you (Beeline)', boost: true },
+      { name: 'Advanced filters', boost: true },
+      { name: 'Incognito mode', boost: true },
+      { name: '5 SuperSwipes per week', boost: true },
+      { name: '1 Spotlight per month', boost: true },
+      { name: 'Unlimited Extends', boost: true },
+      { name: 'Unlimited Rematch', boost: true },
+      { name: 'Priority support', boost: true },
     ],
     isBest: true,
   },
@@ -55,31 +34,35 @@ export default function PremiumPage() {
   const [selectedTier, setSelectedTier] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [userTier, setUserTier] = useState('FREE');
+  const [userGender, setUserGender] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load user's current subscription tier
-    const loadUserTier = async () => {
+    // Load user's current subscription tier and gender
+    const loadUserData = async () => {
       try {
         const response = await authFetch('/api/user/me');
         setUserTier(response.user?.subscriptionTier || 'FREE');
+        setUserGender(response.user?.gender);
+        
+        // Redirect women to dashboard (premium is only for men)
+        if (response.user?.gender === 'Female') {
+          router.push('/dashboard');
+        }
       } catch (err) {
-        console.error('Failed to load user tier:', err);
+        console.error('Failed to load user data:', err);
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadUserTier();
-  }, []);
+    loadUserData();
+  }, [router]);
 
   const handleUpgrade = async (tier) => {
     if (userTier === tier) {
       setErrorMessage(`You already have ${tier} subscription`);
-      return;
-    }
-
-    // Prevent downgrade from BOOST to PREMIUM
-    if (userTier === 'BOOST' && tier === 'PREMIUM') {
-      setErrorMessage('You already have the Boost subscription which includes all Premium features');
       return;
     }
 
@@ -96,7 +79,7 @@ export default function PremiumPage() {
         method: 'POST',
         body: {
           userId: user.id,
-          amount: tier === 'BOOST' ? 2999 : 1999,
+          amount: 49,
           email: user.email,
           phone: user.phoneNumber,
           subscriptionTier: tier,
@@ -149,15 +132,68 @@ export default function PremiumPage() {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin">
+              <div className="h-8 w-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Women-only message
+  if (userGender === 'Female') {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-linear-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-12 text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              You Already Have Everything!
+            </h1>
+            <p className="text-xl text-gray-700 mb-6">
+              As a woman on our platform, you already enjoy unlimited likes, unlimited backtracks, and all premium features completely free.
+            </p>
+            <div className="space-y-3 inline-block text-left mb-8">
+              <div className="flex items-center">
+                <Check className="w-6 h-6 text-green-500 mr-3" />
+                <span className="text-lg text-gray-700">Unlimited likes per day</span>
+              </div>
+              <div className="flex items-center">
+                <Check className="w-6 h-6 text-green-500 mr-3" />
+                <span className="text-lg text-gray-700">Unlimited backtracks</span>
+              </div>
+              <div className="flex items-center">
+                <Check className="w-6 h-6 text-green-500 mr-3" />
+                <span className="text-lg text-gray-700">All premium features</span>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-8 rounded-lg transition"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Men premium page
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4 md:p-8">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
       {/* Header */}
       <div className="max-w-6xl mx-auto mb-12">
         <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
-          Premium
+          Premium - Unlimited Likes
         </h1>
         <p className="text-lg text-gray-600">
-          Unlock all of our features to be in complete control of your experience
+          Get unlimited likes, backtracks, and premium features for just ₹49/month
         </p>
       </div>
 
@@ -176,26 +212,21 @@ export default function PremiumPage() {
       {/* Current Status */}
       {userTier !== 'FREE' && (
         <div className="max-w-6xl mx-auto mb-8 p-4 bg-blue-100 text-blue-700 rounded-lg">
-          ✓ You currently have <strong>{userTier}</strong> subscription
+          ✓ You are subscribed to <strong>Premium</strong> at ₹49 per month
         </div>
       )}
 
       {/* Pricing Cards */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <div className="max-w-2xl mx-auto mb-12 w-full">
         {PREMIUM_TIERS.map((tier) => {
-          // Hide Premium card if user has Boost
-          if (tier.id === 'PREMIUM' && userTier === 'BOOST') {
-            return null;
-          }
-
-          // Hide Boost card if user already has Boost
-          if (tier.id === 'BOOST' && userTier === 'BOOST') {
+          // Show active plan for already subscribed users
+          if (tier.id === userTier) {
             return (
               <div
                 key={tier.id}
                 className="relative rounded-2xl overflow-hidden shadow-2xl ring-2 ring-green-500"
               >
-                <div className={`bg-gradient-to-br ${tier.color} p-8 text-white`}>
+                <div className={`bg-linear-to-br ${tier.color} p-8 text-white`}>
                   <h2 className="text-3xl font-bold mb-2">{tier.name}</h2>
                   <p className="text-sm opacity-90 mb-6">{tier.description}</p>
 
@@ -216,7 +247,7 @@ export default function PremiumPage() {
                   <ul className="space-y-3">
                     {tier.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start">
-                        <Check className="w-5 h-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" />
+                        <Check className="w-5 h-5 text-purple-500 mr-3 shrink-0 mt-0.5" />
                         <span className="text-gray-700">{feature.name}</span>
                       </li>
                     ))}
@@ -226,20 +257,21 @@ export default function PremiumPage() {
             );
           }
 
+          // Show upgrade option for free users
           return (
             <div
               key={tier.id}
               className={`relative rounded-2xl overflow-hidden transition-transform ${
                 tier.isBest ? 'md:scale-105 shadow-2xl' : 'shadow-lg'
-              } ${tier.id === userTier ? 'ring-2 ring-green-500' : ''}`}
+              }`}
             >
               {tier.isBest && (
-                <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-1 rounded-bl-lg text-sm font-semibold">
-                  Best Value
+                <div className="absolute top-0 right-0 bg-linear-to-r from-purple-500 to-purple-600 text-white px-4 py-1 rounded-bl-lg text-sm font-semibold">
+                  Most Popular
                 </div>
               )}
 
-              <div className={`bg-gradient-to-br ${tier.color} p-8 text-white`}>
+              <div className={`bg-linear-to-br ${tier.color} p-8 text-white`}>
                 <h2 className="text-3xl font-bold mb-2">{tier.name}</h2>
                 <p className="text-sm opacity-90 mb-6">{tier.description}</p>
 
@@ -252,19 +284,16 @@ export default function PremiumPage() {
 
                 <button
                   onClick={() => handleUpgrade(tier.id)}
-                  disabled={isProcessing || tier.id === userTier}
-                  className={`w-full py-3 rounded-lg font-semibold transition mb-6 ${
-                    tier.id === userTier
-                      ? 'bg-white bg-opacity-30 text-white cursor-not-allowed'
-                      : 'bg-white text-gray-900 hover:bg-opacity-90'
-                  } disabled:opacity-50`}
+                  disabled={isProcessing}
+                  className="w-full py-3 rounded-lg font-semibold transition mb-6 bg-white text-gray-900 hover:bg-opacity-90 disabled:opacity-50"
                 >
-                  {isProcessing
-                    ? 'Processing...'
-                    : tier.id === userTier
-                    ? 'Current Plan'
-                    : 'Upgrade'}
+                  {isProcessing ? 'Processing...' : 'Upgrade to Premium'}
                 </button>
+
+                <div className="bg-white bg-opacity-20 p-4 rounded-lg mb-6">
+                  <p className="text-xs opacity-75"><strong>Get unlimited likes</strong> (compared to 10 likes/day free)</p>
+                  <p className="text-xs opacity-75"><strong>Only ₹49/month</strong> - Your access to premium features</p>
+                </div>
               </div>
 
               <div className="bg-white p-8">
@@ -272,7 +301,7 @@ export default function PremiumPage() {
                 <ul className="space-y-3">
                   {tier.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start">
-                      <Check className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0 mt-0.5" />
+                      <Check className="w-5 h-5 text-purple-600 mr-3 shrink-0 mt-0.5" />
                       <span className="text-gray-700">{feature.name}</span>
                     </li>
                   ))}
@@ -281,56 +310,6 @@ export default function PremiumPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Feature Comparison */}
-      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Feature Comparison
-          </h2>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900">
-                    What you get:
-                  </th>
-                  <th className="text-center py-4 px-4 font-semibold text-gray-600">
-                    Premium
-                  </th>
-                  <th className="text-center py-4 px-4 font-semibold text-gray-600">
-                    Boost
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {PREMIUM_TIERS[0].features.map((feature, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-4 px-4 text-gray-700 font-medium">
-                      {feature.name}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {feature.premium ? (
-                        <Check className="w-5 h-5 text-amber-500 mx-auto" />
-                      ) : (
-                        <X className="w-5 h-5 text-gray-300 mx-auto" />
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {feature.boost ? (
-                        <Check className="w-5 h-5 text-purple-500 mx-auto" />
-                      ) : (
-                        <X className="w-5 h-5 text-gray-300 mx-auto" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       {/* FAQ Section */}

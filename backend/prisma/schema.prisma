@@ -22,8 +22,7 @@ enum ReportStatus {
 
 enum SubscriptionTier {
   FREE
-  PREMIUM
-  BOOST
+  PREMIUM_MAN
 }
 
 enum SubscriptionStatus {

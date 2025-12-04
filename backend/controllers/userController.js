@@ -236,14 +236,16 @@ export const getMyProfile = async (req, res) => {
       dailyLikesUsed = 0;
     }
 
-    // Calculate like limits
+    // Calculate like limits based on gender and subscription tier
+    // FREE users:
+    //   - Women: unlimited
+    //   - Men: 10 likes/day
+    // PREMIUM_MAN: unlimited
     let dailyLikesLimit;
     if (tier === 'FREE') {
-      dailyLikesLimit = 10;
-    } else if (tier === 'PREMIUM') {
-      dailyLikesLimit = 30;
-    } else if (tier === 'BOOST') {
-      dailyLikesLimit = null; // unlimited
+      dailyLikesLimit = user.gender === 'Female' ? null : 10;
+    } else if (tier === 'PREMIUM_MAN') {
+      dailyLikesLimit = null; // unlimited for men
     }
 
     // Check if daily backtracks need reset
@@ -259,10 +261,8 @@ export const getMyProfile = async (req, res) => {
     let dailyBacktracksLimit;
     if (tier === 'FREE') {
       dailyBacktracksLimit = 0;
-    } else if (tier === 'PREMIUM') {
-      dailyBacktracksLimit = 2;
-    } else if (tier === 'BOOST') {
-      dailyBacktracksLimit = null; // unlimited
+    } else if (tier === 'PREMIUM_MAN') {
+      dailyBacktracksLimit = null; // unlimited for premium
     }
 
     return res.status(200).json({
@@ -689,13 +689,14 @@ export const recordLike = async (req, res) => {
       return res.status(404).json({ error: "Target user not found" });
     }
 
-    // Check daily like limits based on subscription tier
+    // Check daily like limits based on gender and subscription tier
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         subscriptionTier: true,
         dailyLikesUsed: true,
         dailyLikesResetAt: true,
+        gender: true,
       },
     });
 
@@ -717,25 +718,33 @@ export const recordLike = async (req, res) => {
       });
     }
 
-    // Check limits: FREE = 10, PREMIUM = 30, BOOST = unlimited
+    // Check limits based on gender and subscription
+    // FREE users:
+    //   - Men: 10 likes/day
+    //   - Women: unlimited likes
+    // PREMIUM_MAN: unlimited likes
     const tier = currentUser.subscriptionTier;
+    const gender = currentUser.gender;
     let dailyLimit;
+
     if (tier === 'FREE') {
-      dailyLimit = 10;
-    } else if (tier === 'PREMIUM') {
-      dailyLimit = 30;
-    } else if (tier === 'BOOST') {
-      dailyLimit = null; // unlimited
+      // Women get unlimited likes for free
+      dailyLimit = gender === 'Female' ? null : 10;
+    } else if (tier === 'PREMIUM_MAN') {
+      dailyLimit = null; // unlimited for men
     }
 
     if (dailyLimit !== null && dailyLikesUsed >= dailyLimit) {
+      const message = tier === 'FREE' && gender === 'Male'
+        ? 'Upgrade to Premium to increase your likes'
+        : 'Daily like limit reached';
+
       return res.status(403).json({
         error: "Daily like limit reached",
         limit: dailyLimit,
         tier: tier,
-        message: tier === 'FREE' 
-          ? 'Upgrade to Premium for 30 likes per day or Boost for unlimited likes'
-          : 'Upgrade to Boost for unlimited likes',
+        gender: gender,
+        message: message,
       });
     }
 
@@ -924,7 +933,7 @@ export const useBacktrack = async (req, res) => {
     if (tier === 'FREE') {
       return res.status(403).json({
         error: 'Backtrack is not available for free users',
-        message: 'Upgrade to Premium for 2 backtracks per day or Boost for unlimited backtracks',
+        message: 'Upgrade to Premium for unlimited backtracks',
       });
     }
 
@@ -945,12 +954,10 @@ export const useBacktrack = async (req, res) => {
       });
     }
 
-    // Check limits: PREMIUM = 2/day, BOOST = unlimited
+    // Premium users (both men and women) have unlimited backtracks
     let dailyLimit;
-    if (tier === 'PREMIUM') {
-      dailyLimit = 2;
-    } else if (tier === 'BOOST') {
-      dailyLimit = null; // unlimited
+    if (tier === 'PREMIUM_MAN' || tier === 'PREMIUM_WOMAN') {
+      dailyLimit = null; // unlimited for all premium subscribers
     }
 
     if (dailyLimit !== null && dailyBacktracksUsed >= dailyLimit) {
@@ -958,7 +965,7 @@ export const useBacktrack = async (req, res) => {
         error: 'Daily backtrack limit reached',
         limit: dailyLimit,
         tier: tier,
-        message: 'Upgrade to Boost for unlimited backtracks',
+        message: 'Upgrade to Premium for unlimited backtracks',
       });
     }
 
@@ -995,10 +1002,11 @@ export const setTravelMode = async (req, res) => {
       select: { subscriptionTier: true },
     });
 
-    if (user.subscriptionTier !== 'BOOST') {
+    const tier = user.subscriptionTier;
+    if (tier !== 'PREMIUM_MAN' && tier !== 'PREMIUM_WOMAN') {
       return res.status(403).json({
-        error: 'Travel mode is only available for Boost subscribers',
-        message: 'Upgrade to Boost to use travel mode',
+        error: 'Travel mode is only available for Premium subscribers',
+        message: 'Upgrade to Premium to use travel mode',
       });
     }
 

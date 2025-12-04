@@ -28,6 +28,14 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ error: "User not found" });
     }
 
+    // ✅ Premium subscription is only for men
+    if (user.gender === 'Female') {
+      console.error("Women cannot purchase premium subscription");
+      return res.status(403).json({ 
+        error: "Premium subscription is only available for men. Women get all features for free!" 
+      });
+    }
+
     const orderData = {
       order_amount: Number(amount),
       order_currency: "INR",
@@ -67,6 +75,9 @@ export const createOrder = async (req, res) => {
     }
 
     // Save order in DB
+    // Convert "PREMIUM" to "PREMIUM_MAN" for database storage
+    const dbSubscriptionTier = (subscriptionTier || "PREMIUM") === "PREMIUM" ? "PREMIUM_MAN" : subscriptionTier;
+    
     const payment = await prisma.payment.create({
       data: {
         userId,
@@ -74,7 +85,7 @@ export const createOrder = async (req, res) => {
         amount: Number(amount),
         currency: "INR",
         status: "PENDING",
-        subscriptionTier: subscriptionTier || "PREMIUM",
+        subscriptionTier: dbSubscriptionTier || "PREMIUM_MAN",
       },
     });
 
@@ -142,11 +153,15 @@ export const verifyPayment = async (req, res) => {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1); // 1 month validity
 
+      // PREMIUM_MAN is the only subscription tier (for men)
+      // Women don't need subscriptions - they get everything free
+      const actualTier = subscriptionTier === 'PREMIUM_MAN' ? 'PREMIUM_MAN' : subscriptionTier;
+
       // Create or update subscription
       await prisma.subscription.upsert({
         where: { userId: payment.userId },
         update: {
-          tier: subscriptionTier,
+          tier: actualTier,
           status: "ACTIVE",
           startDate: new Date(),
           endDate,
@@ -158,7 +173,7 @@ export const verifyPayment = async (req, res) => {
         },
         create: {
           userId: payment.userId,
-          tier: subscriptionTier,
+          tier: actualTier,
           status: "ACTIVE",
           startDate: new Date(),
           endDate,
@@ -174,7 +189,7 @@ export const verifyPayment = async (req, res) => {
       await prisma.user.update({
         where: { id: payment.userId },
         data: {
-          subscriptionTier,
+          subscriptionTier: actualTier,
           superSwipesLeft: 5,
           spotlightsLeft: 1,
           backtrackAvailable: true,
