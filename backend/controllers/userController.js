@@ -222,9 +222,61 @@ export const getMyProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    // Calculate remaining likes and backtracks
+    const now = new Date();
+    const tier = user.subscriptionTier;
+
+    // Check if daily likes need reset
+    const likesResetAt = user.dailyLikesResetAt ? new Date(user.dailyLikesResetAt) : new Date(0);
+    const hoursSinceLikesReset = (now - likesResetAt) / (1000 * 60 * 60);
+    let dailyLikesUsed = user.dailyLikesUsed;
+
+    if (hoursSinceLikesReset >= 24) {
+      dailyLikesUsed = 0;
+    }
+
+    // Calculate like limits
+    let dailyLikesLimit;
+    if (tier === 'FREE') {
+      dailyLikesLimit = 10;
+    } else if (tier === 'PREMIUM') {
+      dailyLikesLimit = 30;
+    } else if (tier === 'BOOST') {
+      dailyLikesLimit = null; // unlimited
+    }
+
+    // Check if daily backtracks need reset
+    const backtracksResetAt = user.dailyBacktracksResetAt ? new Date(user.dailyBacktracksResetAt) : new Date(0);
+    const hoursSinceBacktracksReset = (now - backtracksResetAt) / (1000 * 60 * 60);
+    let dailyBacktracksUsed = user.dailyBacktracksUsed;
+
+    if (hoursSinceBacktracksReset >= 24) {
+      dailyBacktracksUsed = 0;
+    }
+
+    // Calculate backtrack limits
+    let dailyBacktracksLimit;
+    if (tier === 'FREE') {
+      dailyBacktracksLimit = 0;
+    } else if (tier === 'PREMIUM') {
+      dailyBacktracksLimit = 2;
+    } else if (tier === 'BOOST') {
+      dailyBacktracksLimit = null; // unlimited
+    }
+
     return res.status(200).json({
       success: true,
-      user,
+      user: {
+        ...user,
+        // Add computed fields
+        dailyLikesUsed,
+        dailyLikesLimit,
+        remainingLikes: dailyLikesLimit !== null ? dailyLikesLimit - dailyLikesUsed : null,
+        dailyBacktracksUsed,
+        dailyBacktracksLimit,
+        remainingBacktracks: dailyBacktracksLimit !== null ? dailyBacktracksLimit - dailyBacktracksUsed : null,
+      },
     });
   } catch (err) {
     console.error("Get Profile Error:", err);
@@ -637,6 +689,56 @@ export const recordLike = async (req, res) => {
       return res.status(404).json({ error: "Target user not found" });
     }
 
+    // Check daily like limits based on subscription tier
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        subscriptionTier: true,
+        dailyLikesUsed: true,
+        dailyLikesResetAt: true,
+      },
+    });
+
+    // Reset daily likes if 24 hours have passed
+    const now = new Date();
+    const resetAt = currentUser.dailyLikesResetAt ? new Date(currentUser.dailyLikesResetAt) : new Date(0);
+    const hoursSinceReset = (now - resetAt) / (1000 * 60 * 60);
+
+    let dailyLikesUsed = currentUser.dailyLikesUsed;
+    if (hoursSinceReset >= 24) {
+      // Reset the counter
+      dailyLikesUsed = 0;
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          dailyLikesUsed: 0,
+          dailyLikesResetAt: now,
+        },
+      });
+    }
+
+    // Check limits: FREE = 10, PREMIUM = 30, BOOST = unlimited
+    const tier = currentUser.subscriptionTier;
+    let dailyLimit;
+    if (tier === 'FREE') {
+      dailyLimit = 10;
+    } else if (tier === 'PREMIUM') {
+      dailyLimit = 30;
+    } else if (tier === 'BOOST') {
+      dailyLimit = null; // unlimited
+    }
+
+    if (dailyLimit !== null && dailyLikesUsed >= dailyLimit) {
+      return res.status(403).json({
+        error: "Daily like limit reached",
+        limit: dailyLimit,
+        tier: tier,
+        message: tier === 'FREE' 
+          ? 'Upgrade to Premium for 30 likes per day or Boost for unlimited likes'
+          : 'Upgrade to Boost for unlimited likes',
+      });
+    }
+
     const existingLike = await prisma.like.findFirst({
       where: {
         fromUserId: userId,
@@ -649,6 +751,7 @@ export const recordLike = async (req, res) => {
         success: true,
         message: "Like already recorded",
         likeId: existingLike.id,
+        remainingLikes: dailyLimit !== null ? dailyLimit - dailyLikesUsed : null,
       });
     }
 
@@ -659,10 +762,22 @@ export const recordLike = async (req, res) => {
       },
     });
 
+    // Increment daily likes counter
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        dailyLikesUsed: dailyLikesUsed + 1,
+      },
+    });
+
+    const newLikesUsed = dailyLikesUsed + 1;
     return res.status(201).json({
       success: true,
       message: "Profile liked successfully",
       likeId: like.id,
+      dailyLikesUsed: newLikesUsed,
+      dailyLimit: dailyLimit,
+      remainingLikes: dailyLimit !== null ? dailyLimit - newLikesUsed : null,
     });
   } catch (err) {
     console.error("Record like error:", err);
@@ -786,6 +901,127 @@ export const updateLocation = async (req, res) => {
     return res.status(200).json({ success: true, location: updated.currentLocation });
   } catch (err) {
     console.error('Update location error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ✅ BACKTRACK — Undo last swipe (PREMIUM: 2/day, BOOST: unlimited)
+export const useBacktrack = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        subscriptionTier: true,
+        dailyBacktracksUsed: true,
+        dailyBacktracksResetAt: true,
+      },
+    });
+
+    // Check subscription tier
+    const tier = user.subscriptionTier;
+    if (tier === 'FREE') {
+      return res.status(403).json({
+        error: 'Backtrack is not available for free users',
+        message: 'Upgrade to Premium for 2 backtracks per day or Boost for unlimited backtracks',
+      });
+    }
+
+    // Reset daily backtracks if 24 hours have passed
+    const now = new Date();
+    const resetAt = user.dailyBacktracksResetAt ? new Date(user.dailyBacktracksResetAt) : new Date(0);
+    const hoursSinceReset = (now - resetAt) / (1000 * 60 * 60);
+
+    let dailyBacktracksUsed = user.dailyBacktracksUsed;
+    if (hoursSinceReset >= 24) {
+      dailyBacktracksUsed = 0;
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          dailyBacktracksUsed: 0,
+          dailyBacktracksResetAt: now,
+        },
+      });
+    }
+
+    // Check limits: PREMIUM = 2/day, BOOST = unlimited
+    let dailyLimit;
+    if (tier === 'PREMIUM') {
+      dailyLimit = 2;
+    } else if (tier === 'BOOST') {
+      dailyLimit = null; // unlimited
+    }
+
+    if (dailyLimit !== null && dailyBacktracksUsed >= dailyLimit) {
+      return res.status(403).json({
+        error: 'Daily backtrack limit reached',
+        limit: dailyLimit,
+        tier: tier,
+        message: 'Upgrade to Boost for unlimited backtracks',
+      });
+    }
+
+    // Increment backtrack counter
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        dailyBacktracksUsed: dailyBacktracksUsed + 1,
+      },
+    });
+
+    const newBacktracksUsed = dailyBacktracksUsed + 1;
+    return res.status(200).json({
+      success: true,
+      message: 'Backtrack successful',
+      dailyBacktracksUsed: newBacktracksUsed,
+      dailyLimit: dailyLimit,
+      remainingBacktracks: dailyLimit !== null ? dailyLimit - newBacktracksUsed : null,
+    });
+  } catch (err) {
+    console.error('Backtrack error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ✅ SET TRAVEL MODE LOCATION — Manual location override (BOOST only)
+export const setTravelMode = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { location, active } = req.body; // location: "lat,lng" or city name, active: boolean
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { subscriptionTier: true },
+    });
+
+    if (user.subscriptionTier !== 'BOOST') {
+      return res.status(403).json({
+        error: 'Travel mode is only available for Boost subscribers',
+        message: 'Upgrade to Boost to use travel mode',
+      });
+    }
+
+    const updateData = {
+      travelModeActive: active !== undefined ? active : true,
+    };
+
+    if (location) {
+      updateData.travelModeLocation = location;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    return res.status(200).json({
+      success: true,
+      travelModeActive: updated.travelModeActive,
+      travelModeLocation: updated.travelModeLocation,
+    });
+  } catch (err) {
+    console.error('Set travel mode error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 };

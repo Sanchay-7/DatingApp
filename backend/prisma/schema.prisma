@@ -20,6 +20,19 @@ enum ReportStatus {
   RESOLVED
 }
 
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  BOOST
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+  EXPIRED
+}
+
 // --- MODELS ---
 model User {
   id          String   @id @default(uuid())
@@ -43,6 +56,22 @@ model User {
 
   lastActive  DateTime? @default(now())
 
+  // Premium subscription fields
+  subscriptionTier  SubscriptionTier  @default(FREE)
+  superSwipesLeft   Int               @default(0)
+  spotlightsLeft    Int               @default(0)
+  backtrackAvailable Boolean          @default(false)
+  
+  // Daily limits
+  dailyLikesUsed    Int               @default(0)
+  dailyLikesResetAt DateTime?         @default(now())
+  dailyBacktracksUsed Int             @default(0)
+  dailyBacktracksResetAt DateTime?    @default(now())
+  
+  // Travel mode (BOOST only)
+  travelModeLocation String?          // Manual location override
+  travelModeActive   Boolean          @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -54,12 +83,14 @@ model User {
   reportsSent     Report[] @relation("reportsSent")
   reportsReceived Report[] @relation("reportsReceived")
 
-  payments Payment[]
+  payments      Payment[]
+  subscription   Subscription?
 
   @@index([email])
   @@index([phoneNumber])
   @@index([accountStatus])
   @@index([lastActive])
+  @@index([subscriptionTier])
 }
 
 model Like {
@@ -130,7 +161,6 @@ model Report {
   status         ReportStatus @default(PENDING)
   createdAt      DateTime     @default(now())
 
-  reporter       User @relation("reportsSent", fields: [reporterId], references: [id], onDelete: Cascade)
   // Optional context
   conversationId String?
   messageId      String?
@@ -149,6 +179,32 @@ model Report {
   @@index([createdAt])
 }
 
+model Subscription {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String   @unique
+
+  tier          SubscriptionTier @default(FREE)
+  status        SubscriptionStatus @default(ACTIVE)
+  
+  startDate     DateTime @default(now())
+  endDate       DateTime?
+  
+  // Features
+  superSwipesWeekly Int @default(0)
+  spotlightsMonthly Int @default(0)
+  unlimitedExtends  Boolean @default(false)
+  unlimitedRematch  Boolean @default(false)
+  unlimitedBacktrack Boolean @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+}
+
 model Payment {
   id            String   @id @default(uuid())
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -159,10 +215,11 @@ model Payment {
   amount        Float
   currency      String   @default("INR")
   status        String   @default("PENDING")
+  subscriptionTier SubscriptionTier?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-}
-  @@index([conversationId])
-  @@index([messageId])
+
+  @@index([userId])
+  @@index([status])
 }

@@ -13,7 +13,7 @@ export const createOrder = async (req, res) => {
   try {
     console.log("CreateOrder request body:", req.body);
 
-    const { userId, amount, email, phone } = req.body;
+    const { userId, amount, email, phone, subscriptionTier } = req.body;
 
     // ✅ Check required parameters
     if (!userId || !amount || !email || !phone) {
@@ -31,15 +31,15 @@ export const createOrder = async (req, res) => {
     const orderData = {
       order_amount: Number(amount),
       order_currency: "INR",
-      order_note: "Payment for subscription",
+      order_note: `Valise ${subscriptionTier || 'Premium'} Subscription`,
       customer_details: {
         customer_id: userId,
         customer_email: email,
         customer_phone: phone,
       },
       order_meta: {
-        return_url: "http://localhost:3000/payment-success",
-        notify_url: "http://localhost:5000/api/payment/webhook",
+        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success`,
+        notify_url: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payment/webhook`,
       },
     };
 
@@ -74,10 +74,19 @@ export const createOrder = async (req, res) => {
         amount: Number(amount),
         currency: "INR",
         status: "PENDING",
+        subscriptionTier: subscriptionTier || "PREMIUM",
       },
     });
 
-    res.status(201).json({ order: data, payment });
+    // Return payment session ID for Cashfree SDK integration
+    res.status(201).json({ 
+      success: true,
+      orderId: data.order_id,
+      paymentSessionId: data.payment_session_id,
+      orderAmount: data.order_amount,
+      orderCurrency: data.order_currency,
+      payment 
+    });
 
   } catch (err) {
     console.error("Create order unexpected error:", err);
@@ -93,21 +102,89 @@ export const verifyPayment = async (req, res) => {
   try {
     const { orderId, cfPaymentId, txStatus } = req.body;
 
-    if (!orderId || !cfPaymentId || !txStatus) {
-      return res.status(400).json({ error: "Missing parameters" });
+    console.log('Verify payment request:', { orderId, cfPaymentId, txStatus });
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId parameter" });
     }
 
-    const payment = await prisma.payment.update({
-      where: { orderId },
-      data: {
-        cfPaymentId,
-        status: txStatus === "SUCCESS" ? "SUCCESS" : "FAILED",
+    // Fetch payment status from Cashfree API
+    const url = `${getCashfreeUrl()}/${orderId}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-client-id": process.env.CASHFREE_APP_ID,
+        "x-client-secret": process.env.CASHFREE_SECRET_KEY,
+        "x-api-version": "2022-09-01",
       },
     });
 
-    res.json({ message: "Payment updated", payment });
+    const orderData = await response.json();
+    console.log('Cashfree order status:', orderData);
+
+    // Determine payment status from Cashfree response
+    const paymentStatus = orderData.order_status === 'PAID' ? 'SUCCESS' : 
+                         orderData.order_status === 'ACTIVE' ? 'PENDING' : 'FAILED';
+
+    // Update payment in database
+    const payment = await prisma.payment.update({
+      where: { orderId },
+      data: {
+        cfPaymentId: cfPaymentId || orderData.cf_order_id?.toString(),
+        status: paymentStatus,
+      },
+    });
+
+    // If payment is successful, create/update subscription
+    if (paymentStatus === "SUCCESS" && payment.subscriptionTier) {
+      const subscriptionTier = payment.subscriptionTier;
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1); // 1 month validity
+
+      // Create or update subscription
+      await prisma.subscription.upsert({
+        where: { userId: payment.userId },
+        update: {
+          tier: subscriptionTier,
+          status: "ACTIVE",
+          startDate: new Date(),
+          endDate,
+          superSwipesWeekly: 5,
+          spotlightsMonthly: 1,
+          unlimitedExtends: true,
+          unlimitedRematch: true,
+          unlimitedBacktrack: true,
+        },
+        create: {
+          userId: payment.userId,
+          tier: subscriptionTier,
+          status: "ACTIVE",
+          startDate: new Date(),
+          endDate,
+          superSwipesWeekly: 5,
+          spotlightsMonthly: 1,
+          unlimitedExtends: true,
+          unlimitedRematch: true,
+          unlimitedBacktrack: true,
+        },
+      });
+
+      // Update user subscription tier
+      await prisma.user.update({
+        where: { id: payment.userId },
+        data: {
+          subscriptionTier,
+          superSwipesLeft: 5,
+          spotlightsLeft: 1,
+          backtrackAvailable: true,
+        },
+      });
+    }
+
+    res.json({ message: "Payment verified", payment, orderStatus: orderData.order_status });
   } catch (err) {
-    console.error(err);
+    console.error('Verify payment error:', err);
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };
@@ -130,13 +207,58 @@ export const paymentWebhook = async (req, res) => {
 
     const { orderId, txStatus, referenceId } = req.body;
 
-    await prisma.payment.update({
+    const payment = await prisma.payment.update({
       where: { orderId },
       data: {
         cfPaymentId: referenceId,
         status: txStatus === "SUCCESS" ? "SUCCESS" : "FAILED",
       },
     });
+
+    // If payment is successful, create/update subscription
+    if (txStatus === "SUCCESS" && payment.subscriptionTier) {
+      const subscriptionTier = payment.subscriptionTier;
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1); // 1 month validity
+
+      await prisma.subscription.upsert({
+        where: { userId: payment.userId },
+        update: {
+          tier: subscriptionTier,
+          status: "ACTIVE",
+          startDate: new Date(),
+          endDate,
+          superSwipesWeekly: 5,
+          spotlightsMonthly: 1,
+          unlimitedExtends: true,
+          unlimitedRematch: true,
+          unlimitedBacktrack: true,
+        },
+        create: {
+          userId: payment.userId,
+          tier: subscriptionTier,
+          status: "ACTIVE",
+          startDate: new Date(),
+          endDate,
+          superSwipesWeekly: 5,
+          spotlightsMonthly: 1,
+          unlimitedExtends: true,
+          unlimitedRematch: true,
+          unlimitedBacktrack: true,
+        },
+      });
+
+      // Update user subscription tier
+      await prisma.user.update({
+        where: { id: payment.userId },
+        data: {
+          subscriptionTier,
+          superSwipesLeft: 5,
+          spotlightsLeft: 1,
+          backtrackAvailable: true,
+        },
+      });
+    }
 
     res.status(200).json({ message: "Webhook processed" });
   } catch (err) {

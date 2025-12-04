@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { authFetch, clearAuthToken } from "@/lib/apiClient";
-import { Eye, MessageCircle, ThumbsUp, User as UserIcon, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { Eye, MessageCircle, ThumbsUp, User as UserIcon, Settings as SettingsIcon, LogOut, Zap } from "lucide-react";
 
 export default function Sidebar() {
     const currentPath = usePathname();
@@ -50,6 +50,7 @@ export default function Sidebar() {
         { name: "Messages", href: "/dashboard/user/messages", icon: MessageCircle },
         { name: "Likes You", href: "/dashboard/user/likes", icon: ThumbsUp },
         { name: "My Profile", href: "/dashboard/user/profile", icon: UserIcon },
+        { name: "Premium", href: "/dashboard/user/premium", icon: Zap },
         { name: "Settings", href: "/dashboard/user/settings", icon: SettingsIcon },
     ];
 

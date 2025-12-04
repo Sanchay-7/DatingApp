@@ -57,6 +57,7 @@ function MessagesPageContent() {
     const [messageError, setMessageError] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
     const messagesEndRef = useRef(null);
+    const isInitialLoadRef = useRef(true);
 
     const activeConversation = useMemo(
         () =>
@@ -148,12 +149,12 @@ function MessagesPageContent() {
                 );
                 if (exists) {
                     setSelectedConversationId(queryConversationId);
-                } else if (prepared.length > 0) {
-                    setSelectedConversationId(prepared[0].id);
                 } else {
                     setSelectedConversationId(null);
                 }
-            } else if (!selectedConversationId && prepared.length > 0) {
+            } else if (!selectedConversationId && prepared.length > 0 && isInitialLoadRef.current) {
+                // Only auto-select first conversation **once** on initial load
+                // This prevents auto-selecting after back button is pressed
                 setSelectedConversationId(prepared[0].id);
             } else if (prepared.length === 0) {
                 setSelectedConversationId(null);
@@ -168,7 +169,7 @@ function MessagesPageContent() {
         } finally {
             setIsLoadingConversations(false);
         }
-    }, [router, searchParams, selectedConversationId]);
+    }, [router, searchParams]);
 
     useEffect(() => {
         loadConversations();
@@ -187,9 +188,12 @@ function MessagesPageContent() {
 
     useEffect(() => {
         const conversationId = searchParams.get("conversationId");
-        if (conversationId) {
+        // Only select from URL on initial load
+        if (conversationId && isInitialLoadRef.current) {
             setSelectedConversationId(conversationId);
         }
+        // Mark initial load as complete after first run
+        isInitialLoadRef.current = false;
     }, [searchParams]);
 
     useEffect(() => {
@@ -452,6 +456,15 @@ function MessagesPageContent() {
     const isChatOpenOnMobile = Boolean(selectedConversationId);
     const isListOpenOnMobile = !isChatOpenOnMobile;
 
+    const handleBackButton = () => {
+        setSelectedConversationId(null);
+        setMessages([]);
+        setInput("");
+        setMessageError(null);
+        // Clear the query parameter from URL to keep it clean
+        router.push("/dashboard/user/messages", { scroll: false });
+    };
+
     return (
         <div className="p-4 md:p-8 h-full bg-gray-50">
             <h1 className="text-3xl font-bold text-gray-900 mb-6 hidden lg:block">
@@ -545,7 +558,7 @@ function MessagesPageContent() {
                 >
                     <header className="p-4 border-b border-gray-100 shadow-sm flex items-center justify-between shrink-0">
                         <button
-                            onClick={() => setSelectedConversationId(null)}
+                            onClick={handleBackButton}
                             className="lg:hidden p-1 mr-3 text-gray-700 hover:text-indigo-600"
                         >
                             <ArrowLeft className="w-6 h-6" />

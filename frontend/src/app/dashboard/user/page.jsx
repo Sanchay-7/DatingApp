@@ -19,6 +19,17 @@ export default function DashboardPage() {
     const [minAge, setMinAge] = useState(18);
     const [maxAge, setMaxAge] = useState(65);
     const [showAgeFilter, setShowAgeFilter] = useState(false);
+    const [viewedProfiles, setViewedProfiles] = useState([]); // Track viewed profiles for backtrack
+    const [userSubscription, setUserSubscription] = useState({ 
+        tier: 'FREE', 
+        backtrackAvailable: false,
+        dailyLikesUsed: 0,
+        dailyLikesLimit: 10,
+        remainingLikes: 10,
+        dailyBacktracksUsed: 0,
+        dailyBacktracksLimit: 0,
+        remainingBacktracks: 0,
+    });
     const router = useRouter();
 
     // --- API FETCH LOGIC (UNCOMMENTED) ---
@@ -69,7 +80,29 @@ export default function DashboardPage() {
     useEffect(() => {
         fetchSettings();
         fetchProfiles();
+        fetchUserSubscription();
     }, [fetchSettings, fetchProfiles]); // Empty array means "run once"
+
+    // Fetch user subscription info
+    const fetchUserSubscription = async () => {
+        try {
+            const data = await authFetch('/api/user/me', { method: 'GET' });
+            if (data && data.user) {
+                setUserSubscription({
+                    tier: data.user.subscriptionTier || 'FREE',
+                    backtrackAvailable: data.user.backtrackAvailable || false,
+                    dailyLikesUsed: data.user.dailyLikesUsed || 0,
+                    dailyLikesLimit: data.user.dailyLikesLimit || 10,
+                    remainingLikes: data.user.remainingLikes !== null ? data.user.remainingLikes : 10,
+                    dailyBacktracksUsed: data.user.dailyBacktracksUsed || 0,
+                    dailyBacktracksLimit: data.user.dailyBacktracksLimit || 0,
+                    remainingBacktracks: data.user.remainingBacktracks !== null ? data.user.remainingBacktracks : 0,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch subscription:', err);
+        }
+    };
 
     // --- END API FETCH LOGIC ---
 
@@ -129,6 +162,10 @@ export default function DashboardPage() {
         if (!profile || isActionPending) return;
         setActionMessage(null);
         setIsActionPending(true);
+        
+        // Save current profile to viewed history before advancing
+        setViewedProfiles(prev => [...prev, { profile, action: 'dislike', index: currentIndex }]);
+        
         try {
             await authFetch('/api/user/dislike', {
                 method: 'POST',
@@ -152,18 +189,103 @@ export default function DashboardPage() {
         const profile = allProfiles[currentIndex];
         if (!profile || isActionPending) return;
         setIsActionPending(true);
+        
+        // Save current profile to viewed history before advancing
+        setViewedProfiles(prev => [...prev, { profile, action: 'like', index: currentIndex }]);
+        
         try {
-            await authFetch('/api/user/like', {
+            const response = await authFetch('/api/user/like', {
                 method: 'POST',
                 body: { targetUserId: profile.id },
             });
+            
+            // Update remaining likes
+            if (response.remainingLikes !== null && response.remainingLikes !== undefined) {
+                setUserSubscription(prev => ({
+                    ...prev,
+                    dailyLikesUsed: response.dailyLikesUsed,
+                    remainingLikes: response.remainingLikes,
+                }));
+            }
+            
             advanceProfiles(currentIndex);
         } catch (likeError) {
             console.error("Failed to like profile:", likeError);
-            setActionMessage(likeError.message || "Failed to like profile.");
+            
+            // Handle daily limit reached
+            if (likeError.status === 403 && likeError.message.includes('Daily like limit')) {
+                const tier = userSubscription.tier;
+                if (tier === 'FREE') {
+                    setActionMessage('❤️ Daily limit reached (10 likes). Upgrade to Premium for 30 likes/day or Boost for unlimited!');
+                } else if (tier === 'PREMIUM') {
+                    setActionMessage('❤️ Daily limit reached (30 likes). Upgrade to Boost for unlimited likes!');
+                }
+            } else {
+                setActionMessage(likeError.message || "Failed to like profile.");
+            }
+            
             if (likeError.status === 401) {
                 clearAuthToken();
                 router.push('/signin');
+            }
+        } finally {
+            setIsActionPending(false);
+        }
+    };
+
+    const handleBacktrack = async () => {
+        if (viewedProfiles.length === 0) {
+            setActionMessage("No previous profiles to go back to");
+            return;
+        }
+
+        const tier = userSubscription.tier;
+        if (tier === 'FREE') {
+            setActionMessage("⭐ Backtrack is a Premium feature. Upgrade to Premium for 2 backtracks/day or Boost for unlimited!");
+            return;
+        }
+
+        // Check daily limit for PREMIUM users
+        if (tier === 'PREMIUM' && userSubscription.remainingBacktracks <= 0) {
+            setActionMessage("↩️ Daily backtrack limit reached (2/day). Upgrade to Boost for unlimited backtracks!");
+            return;
+        }
+
+        setIsActionPending(true);
+        try {
+            // Call backtrack API to track usage
+            const response = await authFetch('/api/user/backtrack', {
+                method: 'POST',
+            });
+
+            // Update remaining backtracks
+            if (response.remainingBacktracks !== null && response.remainingBacktracks !== undefined) {
+                setUserSubscription(prev => ({
+                    ...prev,
+                    dailyBacktracksUsed: response.dailyBacktracksUsed,
+                    remainingBacktracks: response.remainingBacktracks,
+                }));
+            }
+
+            // Get the last viewed profile
+            const lastViewed = viewedProfiles[viewedProfiles.length - 1];
+            
+            // Remove it from viewed history
+            setViewedProfiles(prev => prev.slice(0, -1));
+            
+            // Add it back to the beginning of allProfiles
+            setAllProfiles(prev => [lastViewed.profile, ...prev]);
+            setCurrentIndex(0);
+            
+            const remaining = response.remainingBacktracks !== null ? ` (${response.remainingBacktracks} left today)` : '';
+            setActionMessage(`↩️ Went back to ${lastViewed.profile.name || 'previous profile'}${remaining}`);
+            setTimeout(() => setActionMessage(null), 3000);
+        } catch (err) {
+            console.error('Backtrack error:', err);
+            if (err.status === 403) {
+                setActionMessage(err.message || 'Backtrack limit reached');
+            } else {
+                setActionMessage('Failed to use backtrack');
             }
         } finally {
             setIsActionPending(false);
@@ -258,15 +380,28 @@ export default function DashboardPage() {
                     <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
                         Discover Matches Near You
                     </h1>
-                    <button
-                        onClick={() => setShowAgeFilter(!showAgeFilter)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition text-sm sm:text-base whitespace-nowrap"
-                    >
-                        {showAgeFilter ? 'Hide Filters' : 'Age Filter'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleBacktrack}
+                            disabled={viewedProfiles.length === 0}
+                            className={`px-4 py-2 rounded-lg font-semibold transition text-sm sm:text-base whitespace-nowrap ${
+                                viewedProfiles.length === 0 
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                            }`}
+                            title={!userSubscription.backtrackAvailable && userSubscription.tier === 'FREE' ? 'Premium Feature' : 'Go back to previous profile'}
+                        >
+                            ↩️ Backtrack {!userSubscription.backtrackAvailable && userSubscription.tier === 'FREE' && '⭐'}
+                        </button>
+                        <button
+                            onClick={() => setShowAgeFilter(!showAgeFilter)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition text-sm sm:text-base whitespace-nowrap"
+                        >
+                            {showAgeFilter ? 'Hide Filters' : 'Age Filter'}
+                        </button>
+                    </div>
                 </div>
 
-                {/* Age Filter Section */}
                 {showAgeFilter && (
                     <div className="w-full max-w-2xl mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md">
                         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Age Preference</h2>

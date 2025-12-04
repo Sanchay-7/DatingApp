@@ -15,6 +15,8 @@ import {
   deleteAccount,
   reportUser,
   updateLocation,
+  useBacktrack,
+  setTravelMode,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -49,6 +51,8 @@ router.get("/likes", authMiddleware, getUserLikes);
 router.get("/dashboard", authMiddleware, getDashboardData);
 router.post("/dislike", authMiddleware, recordDislike);
 router.post("/like", authMiddleware, recordLike);
+router.post("/backtrack", authMiddleware, useBacktrack);
+router.post("/travel-mode", authMiddleware, setTravelMode);
 router.delete("/delete-account", authMiddleware, deleteAccount);
 router.post("/report", authMiddleware, reportUser);
 
