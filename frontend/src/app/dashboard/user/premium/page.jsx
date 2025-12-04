@@ -118,14 +118,14 @@ export default function PremiumPage() {
   const loadCashfreeSDK = () => {
     return new Promise((resolve, reject) => {
       if (window.Cashfree) {
-        resolve(window.Cashfree({ mode: 'sandbox' })); // Change to 'production' for live
+        resolve(window.Cashfree({ mode: process.env.NEXT_PUBLIC_CASHFREE_ENV || 'sandbox' }));
         return;
       }
 
       const script = document.createElement('script');
       script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
       script.onload = () => {
-        resolve(window.Cashfree({ mode: 'sandbox' })); // Change to 'production' for live
+        resolve(window.Cashfree({ mode: process.env.NEXT_PUBLIC_CASHFREE_ENV || 'sandbox' }));
       };
       script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
       document.body.appendChild(script);
