@@ -14,31 +14,34 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 
 const app = express();
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for API
-  crossOriginEmbedderPolicy: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable for API
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // Compression middleware
 app.use(compression());
 
 // Logging middleware
-if (process.env.NODE_ENV === 'production') {
-  app.use(morgan('combined'));
+if (process.env.NODE_ENV === "production") {
+  app.use(morgan("combined"));
 } else {
-  app.use(morgan('dev'));
+  app.use(morgan("dev"));
 }
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Relaxed: allow more requests per window
-  message: 'Too many requests from this IP, please try again later.',
+  max: 1000, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
   // Skip preflight and lightweight user reads to avoid throttling the app shell
@@ -55,7 +58,7 @@ const limiter = rateLimit({
     return false;
   },
 });
-app.use('/api/', limiter);
+app.use("/api/", limiter);
 
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
@@ -64,13 +67,12 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   skip: (req) => req.method === 'OPTIONS' || req.method === 'HEAD',
 });
-app.use('/api/auth/signin', authLimiter);
-app.use('/api/auth/signup', authLimiter);
+app.use("/api/auth/signin", authLimiter);
+app.use("/api/auth/signup", authLimiter);
 
-// CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:3000'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:3000"];
 
 app.use(
   cors({
@@ -83,27 +85,26 @@ app.use(
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
+  res.status(200).json({
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  // Rate limiting (skip preflight OPTIONS/HEAD requests)
+    uptime: process.uptime(),
   });
 });
 
 app.get("/", async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     res.json({ message: "Dating API v2.0" });
   } else {
     const users = await prisma.user.findMany();
@@ -121,6 +122,7 @@ app.use("/api/report", reportRoutes);
 // This ensures your server listens for /api/user/* to match your frontend
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // 404 handler
 app.use((req, res) => {
