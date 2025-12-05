@@ -68,17 +68,59 @@ export const getPendingUsers = async (req, res) => {
 export const approveUser = async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // 1️⃣ Fetch user first
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        selfiePhoto: true, // 👈 correct field
+        photos: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 2️⃣ Validate selfie exists
+    if (!user.selfiePhoto) {
+      return res
+        .status(400)
+        .json({ error: "User has not uploaded a selfie yet" });
+    }
+
+    // 3️⃣ Validate profile photos exist
+    if (!user.photos || user.photos.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "User has not uploaded profile photos" });
+    }
+
+    // 4️⃣ Approve user + mark selfie as approved
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         accountStatus: "ACTIVE",
+        selfieStatus: "APPROVED", // 👈 use enum/string status
+        verificationAt: new Date(), // 👈 timestamp when verified
+        isVerified: true, // 👈 optional but consistent
+        // reset limits (optional, but valid fields in your schema)
+        dailyLikesUsed: 0,
+        dailyLikesResetAt: new Date(),
+        dailyBacktracksUsed: 0,
+        dailyBacktracksResetAt: new Date(),
       },
     });
-    res.status(200).json({ success: true, user: updatedUser });
+
+    return res.status(200).json({ success: true, user: updatedUser });
   } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    console.error("Approve user error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
+
+
+
 
 // ✅ REJECT A USER
 export const rejectUser = async (req, res) => {

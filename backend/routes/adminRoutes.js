@@ -49,5 +49,7 @@ router.put("/users/:userId/approve", authAdmin, approveUser);
 
 // PUT /api/v1/admin/users/:userId/reject
 router.put("/users/:userId/reject", authAdmin, rejectUser);
+router.put("/users/:userId/approve", authAdmin, approveUser);
+
 
 export default router;

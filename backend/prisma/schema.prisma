@@ -55,21 +55,26 @@ model User {
 
   lastActive  DateTime? @default(now())
 
+  // --- Selfie / manual verification ---
+  selfiePhotoUrl  String?  // 👈 main selfie image
+  selfiePublicId  String?  // 👈 Cloudinary public_id (optional but useful)
+  selfieVerified  Boolean  @default(false) // 👈 did admin verify this selfie?
+
   // Premium subscription fields
-  subscriptionTier  SubscriptionTier  @default(FREE)
-  superSwipesLeft   Int               @default(0)
-  spotlightsLeft    Int               @default(0)
-  backtrackAvailable Boolean          @default(false)
+  subscriptionTier   SubscriptionTier  @default(FREE)
+  superSwipesLeft    Int               @default(0)
+  spotlightsLeft     Int               @default(0)
+  backtrackAvailable Boolean           @default(false)
   
   // Daily limits
-  dailyLikesUsed    Int               @default(0)
-  dailyLikesResetAt DateTime?         @default(now())
-  dailyBacktracksUsed Int             @default(0)
-  dailyBacktracksResetAt DateTime?    @default(now())
+  dailyLikesUsed        Int        @default(0)
+  dailyLikesResetAt     DateTime?  @default(now())
+  dailyBacktracksUsed   Int        @default(0)
+  dailyBacktracksResetAt DateTime? @default(now())
   
   // Travel mode (BOOST only)
-  travelModeLocation String?          // Manual location override
-  travelModeActive   Boolean          @default(false)
+  travelModeLocation String?
+  travelModeActive   Boolean       @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,7 +95,10 @@ model User {
   @@index([accountStatus])
   @@index([lastActive])
   @@index([subscriptionTier])
+  @@index([selfieStatus])
+  @@index([isVerified])
 }
+
 
 model Like {
   id         String   @id @default(uuid())
