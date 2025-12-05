@@ -55,10 +55,12 @@ model User {
 
   lastActive  DateTime? @default(now())
 
-  // --- Selfie / manual verification ---
-  selfiePhotoUrl  String?  // 👈 main selfie image
-  selfiePublicId  String?  // 👈 Cloudinary public_id (optional but useful)
-  selfieVerified  Boolean  @default(false) // 👈 did admin verify this selfie?
+  // --- Selfie verification for account approval ---
+  selfiePhotoUrl  String?   // Cloudinary URL for selfie
+  selfiePublicId  String?   // Cloudinary public_id for deletion if needed
+  selfieStatus    String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  verificationNote String?  // Admin notes about verification
+  verificationAt   DateTime? // When admin verified
 
   // Premium subscription fields
   subscriptionTier   SubscriptionTier  @default(FREE)
@@ -96,7 +98,6 @@ model User {
   @@index([lastActive])
   @@index([subscriptionTier])
   @@index([selfieStatus])
-  @@index([isVerified])
 }
 
 

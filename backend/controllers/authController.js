@@ -38,7 +38,33 @@ export const signup = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ error: "Email or phone already exists" });
+      // If user exists but profile is NOT complete (no name, birthday, gender, photos)
+      // Allow them to complete profile instead of rejecting
+      const hasProfile = existing.name && existing.birthday && existing.gender && existing.photos && existing.photos.length > 0;
+      
+      if (hasProfile) {
+        // User has a complete profile - this is a duplicate signup
+        return res.status(400).json({ 
+          error: "Email or phone already exists",
+          userId: existing.id,
+          accountStatus: existing.accountStatus
+        });
+      } else {
+        // User started signup but didn't complete profile - allow them to continue
+        const token = jwt.sign(
+          { id: existing.id, email: existing.email },
+          process.env.JWT_SECRET,
+          { expiresIn: "7d" }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          message: "Welcome back! Continue completing your profile.",
+          token,
+          user: existing,
+          isResume: true // Flag to indicate this is resuming profile setup
+        });
+      }
     }
 
     // 4️⃣ Hash password

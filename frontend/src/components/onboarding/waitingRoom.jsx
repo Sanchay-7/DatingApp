@@ -31,7 +31,7 @@ const RotatingClockIcon = () => {
 export default function WaitingPage() {
   const router = useRouter();
   const [statusMessage, setStatusMessage] = useState(
-    "Your profile is hidden while we're verifying your identity. It should only take a few minutes."
+    "We're verifying your selfie and profile photos. An admin will review your account shortly. This usually takes a few minutes to a few hours."
   );
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function WaitingPage() {
         } 
         else if (data.status === 'REJECTED' || data.status === 'BANNED') {
           // ❌ ADMIN REJECTED
-          setStatusMessage('Your account has been rejected or suspended. Please contact support.');
+          setStatusMessage('Your account verification was not successful. This could be due to selfie-photo mismatch or policy violations. Please contact support for more information.');
           // Stop polling
           if (window.pollingInterval) clearInterval(window.pollingInterval);
         }
@@ -102,10 +102,18 @@ export default function WaitingPage() {
         <div className="mb-6">
           <RotatingClockIcon />
         </div>
-        <h1 className="text-3xl font-bold mb-3 text-pink-500">One moment…</h1>
-        <p className="text-gray-600 text-base max-w-xs">
+        <h1 className="text-3xl font-bold mb-3 text-pink-500">Verifying Your Account...</h1>
+        <p className="text-gray-600 text-base max-w-xs mb-4">
           {statusMessage}
         </p>
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-left text-sm text-gray-700">
+          <p className="font-semibold mb-2">What's being verified?</p>
+          <ul className="space-y-1 text-xs">
+            <li>✓ Your selfie matches your profile photos</li>
+            <li>✓ Your photos are clear and appropriate</li>
+            <li>✓ You meet age requirements (18+)</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

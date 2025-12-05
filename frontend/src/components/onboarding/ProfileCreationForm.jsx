@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
+import StepSelfie from "./StepSelfie";
 import Step1_Photos from "./Step1_Photos";
 import Step2_Details from "./Step2_Details";
 import Step3_Preferences from "./Step3_Preferences";
@@ -18,7 +19,7 @@ import Step4_Review from "./Step4_Review";
  * - Focus     : ring-pink-300
  */
 
-const MAX_STEPS = 4;
+const MAX_STEPS = 5; // Updated from 4 to 5 (added selfie step)
 
 const ProfileCreationForm = () => {
   const router = useRouter();
@@ -27,6 +28,8 @@ const ProfileCreationForm = () => {
   const [submitError, setSubmitError] = useState(null);
 
   const [formData, setFormData] = useState({
+    selfiePhotoUrl: "",
+    selfiePublicId: "",
     photos: [],
     name: "",
     birthday: { month: "", day: "", year: "" },
@@ -73,8 +76,13 @@ const ProfileCreationForm = () => {
   const isStepValid = useMemo(() => {
     switch (currentStep) {
       case 1:
+        // Step 1: Selfie verification
+        return formData.selfiePhotoUrl !== "";
+      case 2:
+        // Step 2: Photos
         return formData.photos.length >= 2;
-      case 2: {
+      case 3: {
+        // Step 3: Basic details
         const { birthday } = formData;
         const basicDetailsValid =
           formData.name.trim() !== "" &&
@@ -84,12 +92,14 @@ const ProfileCreationForm = () => {
           formData.gender !== "";
         return basicDetailsValid && ageValidationError === null;
       }
-      case 3:
+      case 4:
+        // Step 4: Preferences
         return (
           formData.preferences.interestedIn.length > 0 &&
           formData.preferences.relationshipIntent !== ""
         );
-      case 4:
+      case 5:
+        // Step 5: Review
         return true;
       default:
         return false;
@@ -118,12 +128,17 @@ const ProfileCreationForm = () => {
 
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 
-      // Step 1: Validate photos
+      // Step 1: Validate selfie
+      if (!formData.selfiePhotoUrl) {
+        throw new Error("Selfie verification is required");
+      }
+
+      // Step 2: Validate photos
       if (!formData.photos || formData.photos.length < 2) {
         throw new Error("Please upload at least 2 photos");
       }
 
-      // Step 2: Upload all photos to get URLs
+      // Step 3: Upload all photos to get URLs
       const photoUrls = [];
       for (const photo of formData.photos) {
         if (photo.file) {
@@ -151,19 +166,21 @@ const ProfileCreationForm = () => {
         }
       }
 
-      // Step 3: Transform birthday to ISO string
+      // Step 4: Transform birthday to ISO string
       const { day, month, year } = formData.birthday;
       if (!day || !month || !year) {
         throw new Error("Please complete your birthday information");
       }
       const birthdayISO = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 
-      // Step 4: Prepare profile data (only include defined values)
+      // Step 5: Prepare profile data (including selfie)
       const profileData = {
         name: formData.name,
         birthday: birthdayISO,
         gender: formData.gender,
         photos: photoUrls,
+        selfiePhotoUrl: formData.selfiePhotoUrl,
+        selfiePublicId: formData.selfiePublicId,
       };
 
       // Only add optional fields if they have values
@@ -186,7 +203,7 @@ const ProfileCreationForm = () => {
 
       // Console logs removed for production
 
-      // Step 5: Update profile
+      // Step 6: Update profile
       const profileResponse = await fetch(`${API_BASE}/api/user/update-profile`, {
         method: "PUT",
         headers: {
@@ -250,8 +267,10 @@ const ProfileCreationForm = () => {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1_Photos formData={formData} updateFormData={updateFormData} />;
+        return <StepSelfie formData={formData} updateFormData={updateFormData} goToNext={nextStep} />;
       case 2:
+        return <Step1_Photos formData={formData} updateFormData={updateFormData} />;
+      case 3:
         return (
           <Step2_Details
             formData={formData}
@@ -259,14 +278,14 @@ const ProfileCreationForm = () => {
             ageValidationError={ageValidationError}
           />
         );
-      case 3:
+      case 4:
         return (
           <Step3_Preferences
             formData={formData}
             updateFormData={updateFormData}
           />
         );
-      case 4:
+      case 5:
         return <Step4_Review formData={formData} />;
       default:
         return null;

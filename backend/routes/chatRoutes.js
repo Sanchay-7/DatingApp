@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware } from "../middleware/auth.js";
+import { authMiddleware, requireActiveAccount } from "../middleware/auth.js";
 import {
   startConversation,
   listConversations,
@@ -10,7 +10,9 @@ import {
 
 const router = express.Router();
 
+// Require authentication and active account for all chat routes
 router.use(authMiddleware);
+router.use(requireActiveAccount);
 
 router.post("/start", startConversation);
 router.get("/conversations", listConversations);

@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { authMiddleware } from "../middleware/auth.js";
+import { authMiddleware, requireActiveAccount } from "../middleware/auth.js";
 import upload from "../middleware/upload.js";
 import {
   uploadImage,
@@ -53,18 +53,21 @@ router.post(
   uploadSelfie
 );
 
+// Profile setup routes - allow PENDING users to complete profile
 router.put("/update-profile", authMiddleware, updateProfile);
 router.put("/update-preferences", authMiddleware, updatePreferences);
-router.put("/update-location", authMiddleware, updateLocation);
-router.get("/me", authMiddleware, getMyProfile);
-router.get("/settings", authMiddleware, getUserSettings);
-router.get("/likes", authMiddleware, getUserLikes);
-router.get("/dashboard", authMiddleware, getDashboardData);
-router.post("/dislike", authMiddleware, recordDislike);
-router.post("/like", authMiddleware, recordLike);
-router.post("/backtrack", authMiddleware, useBacktrack);
-router.post("/travel-mode", authMiddleware, setTravelMode);
-router.delete("/delete-account", authMiddleware, deleteAccount);
-router.post("/report", authMiddleware, reportUser);
+
+// Protected routes - require ACTIVE account (approved by admin)
+router.put("/update-location", authMiddleware, requireActiveAccount, updateLocation);
+router.get("/me", authMiddleware, requireActiveAccount, getMyProfile);
+router.get("/settings", authMiddleware, requireActiveAccount, getUserSettings);
+router.get("/likes", authMiddleware, requireActiveAccount, getUserLikes);
+router.get("/dashboard", authMiddleware, requireActiveAccount, getDashboardData);
+router.post("/dislike", authMiddleware, requireActiveAccount, recordDislike);
+router.post("/like", authMiddleware, requireActiveAccount, recordLike);
+router.post("/backtrack", authMiddleware, requireActiveAccount, useBacktrack);
+router.post("/travel-mode", authMiddleware, requireActiveAccount, setTravelMode);
+router.delete("/delete-account", authMiddleware, requireActiveAccount, deleteAccount);
+router.post("/report", authMiddleware, requireActiveAccount, reportUser);
 
 export default router;

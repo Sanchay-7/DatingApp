@@ -92,7 +92,14 @@ export default function SignUp() {
         if (data.token) {
           localStorage.setItem("valise_token", data.token);
         }
-        alert("✅ Account created!");
+        
+        // Check if this is resuming a profile or new signup
+        if (data.isResume) {
+          alert("👋 Welcome back! Let's complete your profile.");
+        } else {
+          alert("✅ Account created!");
+        }
+        
         router.push("/profile-setup");
       } else {
         alert("❌ " + data.error);

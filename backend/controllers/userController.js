@@ -116,7 +116,6 @@ export const uploadImage = async (req, res) => {
 // Update Profile
 export const updateProfile = async (req, res) => {
   try {
-    // ✅ FIX: Removed the extra dot from req.user.id
     const userId = req.user.id;
     const {
       name,
@@ -127,7 +126,8 @@ export const updateProfile = async (req, res) => {
       hometown,
       currentLocation,
       photos,
-      selfiePhoto,
+      selfiePhotoUrl,
+      selfiePublicId,
     } = req.body;
 
     const updateData = {};
@@ -140,13 +140,15 @@ export const updateProfile = async (req, res) => {
     if (currentLocation !== undefined)
       updateData.currentLocation = currentLocation;
     if (photos !== undefined) updateData.photos = photos;
-    // ⭐ NEW: Save selfie + reset verification status
-    if (selfiePhoto !== undefined) {
-      updateData.selfiePhoto = selfiePhoto;
+    
+    // Handle selfie upload - sets account to PENDING_APPROVAL
+    if (selfiePhotoUrl !== undefined) {
+      updateData.selfiePhotoUrl = selfiePhotoUrl;
+      updateData.selfiePublicId = selfiePublicId || null;
       updateData.selfieStatus = "PENDING";
+      updateData.accountStatus = "PENDING_APPROVAL"; // Wait for admin approval
       updateData.verificationNote = null;
       updateData.verificationAt = null;
-      updateData.isVerified = false;
     }
 
     const updated = await prisma.user.update({
@@ -156,7 +158,9 @@ export const updateProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Profile updated successfully",
+      message: selfiePhotoUrl 
+        ? "Profile updated. Your selfie is pending admin verification."
+        : "Profile updated successfully",
       user: updated,
     });
   } catch (err) {
