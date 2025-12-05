@@ -24,9 +24,14 @@ export const authAdmin = async (req, res, next) => {
     // Note: We check the role inside the token first for speed.
     // In your createAdmin script, we set the role to "superadmin".
     // Let's check for "superadmin" or "admin".
-    if (decoded.role !== 'admin' && decoded.role !== 'superadmin') {
-       return res.status(403).json({ error: "Not authorized, invalid role" });
+    if (
+      decoded.role !== "admin" &&
+      decoded.role !== "ADMIN" &&
+      decoded.role !== "superadmin"
+    ) {
+      return res.status(403).json({ error: "Not authorized, invalid role" });
     }
+
     
     const admin = await prisma.admin.findUnique({
       where: { id: decoded.id },

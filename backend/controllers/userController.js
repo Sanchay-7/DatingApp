@@ -127,6 +127,7 @@ export const updateProfile = async (req, res) => {
       hometown,
       currentLocation,
       photos,
+      selfiePhoto,
     } = req.body;
 
     const updateData = {};
@@ -139,6 +140,14 @@ export const updateProfile = async (req, res) => {
     if (currentLocation !== undefined)
       updateData.currentLocation = currentLocation;
     if (photos !== undefined) updateData.photos = photos;
+    // ⭐ NEW: Save selfie + reset verification status
+    if (selfiePhoto !== undefined) {
+      updateData.selfiePhoto = selfiePhoto;
+      updateData.selfieStatus = "PENDING";
+      updateData.verificationNote = null;
+      updateData.verificationAt = null;
+      updateData.isVerified = false;
+    }
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -177,8 +186,7 @@ export const updatePreferences = async (req, res) => {
     });
 
     const preferencesData = parsePreferences(existing?.preferences);
-    if (interestedIn !== undefined)
-      preferencesData.interestedIn = interestedIn;
+    if (interestedIn !== undefined) preferencesData.interestedIn = interestedIn;
     if (relationshipIntent !== undefined)
       preferencesData.relationshipIntent = relationshipIntent;
     if (sexualOrientation !== undefined)
@@ -228,7 +236,9 @@ export const getMyProfile = async (req, res) => {
     const tier = user.subscriptionTier;
 
     // Check if daily likes need reset
-    const likesResetAt = user.dailyLikesResetAt ? new Date(user.dailyLikesResetAt) : new Date(0);
+    const likesResetAt = user.dailyLikesResetAt
+      ? new Date(user.dailyLikesResetAt)
+      : new Date(0);
     const hoursSinceLikesReset = (now - likesResetAt) / (1000 * 60 * 60);
     let dailyLikesUsed = user.dailyLikesUsed;
 
@@ -242,15 +252,18 @@ export const getMyProfile = async (req, res) => {
     //   - Men: 10 likes/day
     // PREMIUM_MAN: unlimited
     let dailyLikesLimit;
-    if (tier === 'FREE') {
-      dailyLikesLimit = user.gender === 'Female' ? null : 10;
-    } else if (tier === 'PREMIUM_MAN') {
+    if (tier === "FREE") {
+      dailyLikesLimit = user.gender === "Female" ? null : 10;
+    } else if (tier === "PREMIUM_MAN") {
       dailyLikesLimit = null; // unlimited for men
     }
 
     // Check if daily backtracks need reset
-    const backtracksResetAt = user.dailyBacktracksResetAt ? new Date(user.dailyBacktracksResetAt) : new Date(0);
-    const hoursSinceBacktracksReset = (now - backtracksResetAt) / (1000 * 60 * 60);
+    const backtracksResetAt = user.dailyBacktracksResetAt
+      ? new Date(user.dailyBacktracksResetAt)
+      : new Date(0);
+    const hoursSinceBacktracksReset =
+      (now - backtracksResetAt) / (1000 * 60 * 60);
     let dailyBacktracksUsed = user.dailyBacktracksUsed;
 
     if (hoursSinceBacktracksReset >= 24) {
@@ -259,9 +272,9 @@ export const getMyProfile = async (req, res) => {
 
     // Calculate backtrack limits
     let dailyBacktracksLimit;
-    if (tier === 'FREE') {
+    if (tier === "FREE") {
       dailyBacktracksLimit = 0;
-    } else if (tier === 'PREMIUM_MAN') {
+    } else if (tier === "PREMIUM_MAN") {
       dailyBacktracksLimit = null; // unlimited for premium
     }
 
@@ -272,10 +285,14 @@ export const getMyProfile = async (req, res) => {
         // Add computed fields
         dailyLikesUsed,
         dailyLikesLimit,
-        remainingLikes: dailyLikesLimit !== null ? dailyLikesLimit - dailyLikesUsed : null,
+        remainingLikes:
+          dailyLikesLimit !== null ? dailyLikesLimit - dailyLikesUsed : null,
         dailyBacktracksUsed,
         dailyBacktracksLimit,
-        remainingBacktracks: dailyBacktracksLimit !== null ? dailyBacktracksLimit - dailyBacktracksUsed : null,
+        remainingBacktracks:
+          dailyBacktracksLimit !== null
+            ? dailyBacktracksLimit - dailyBacktracksUsed
+            : null,
       },
     });
   } catch (err) {
@@ -333,7 +350,9 @@ export const getUserLikes = async (req, res) => {
       const liker = entry.fromUser;
       const prefs = parsePreferences(liker.preferences);
       const photos = toArray(liker.photos);
-      const isOnline = liker.lastActive && (new Date() - new Date(liker.lastActive)) < 5 * 60 * 1000; // Online if active within 5 minutes
+      const isOnline =
+        liker.lastActive &&
+        new Date() - new Date(liker.lastActive) < 5 * 60 * 1000; // Online if active within 5 minutes
       return {
         id: entry.id,
         userId: liker.id,
@@ -377,7 +396,7 @@ export const getDashboardData = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (currentUser.accountStatus !== 'ACTIVE') {
+    if (currentUser.accountStatus !== "ACTIVE") {
       return res.status(403).json({ error: "Account not active." });
     }
 
@@ -421,13 +440,15 @@ export const getDashboardData = async (req, res) => {
     }
 
     const likedUserIds = new Set(
-      toArray(currentUser.likesSent).map((entry) => entry?.toUserId).filter(Boolean)
+      toArray(currentUser.likesSent)
+        .map((entry) => entry?.toUserId)
+        .filter(Boolean)
     );
 
     const candidateWhere = {
       id: { not: userId },
       accountStatus: "ACTIVE",
-    }
+    };
 
     if (!viewerShowsEveryone) {
       candidateWhere.gender = { in: targetGenders };
@@ -459,8 +480,8 @@ export const getDashboardData = async (req, res) => {
 
     // Helper: parse "lat,lng" string into numeric tuple
     const parseCoords = (loc) => {
-      if (!loc || typeof loc !== 'string') return null;
-      const parts = loc.split(',');
+      if (!loc || typeof loc !== "string") return null;
+      const parts = loc.split(",");
       if (parts.length !== 2) return null;
       const lat = parseFloat(parts[0]);
       const lng = parseFloat(parts[1]);
@@ -476,13 +497,18 @@ export const getDashboardData = async (req, res) => {
       const dLng = toRad(b.lng - a.lng);
       const lat1 = toRad(a.lat);
       const lat2 = toRad(b.lat);
-      const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      const x =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * c;
     };
 
     const viewerCoords = parseCoords(currentUser.currentLocation);
-    const maxDistanceKm = Number(parsePreferences(currentUser.preferences)?.settings?.maxDistance) || DEFAULT_SETTINGS.maxDistance;
+    const maxDistanceKm =
+      Number(
+        parsePreferences(currentUser.preferences)?.settings?.maxDistance
+      ) || DEFAULT_SETTINGS.maxDistance;
 
     const recommendations = candidates
       .filter((candidate) => !dislikedIds.has(candidate.id))
@@ -596,7 +622,9 @@ export const deleteAccount = async (req, res) => {
     const { password } = req.body;
 
     if (!password) {
-      return res.status(400).json({ error: "Password is required for account deletion" });
+      return res
+        .status(400)
+        .json({ error: "Password is required for account deletion" });
     }
 
     // Fetch user to verify password
@@ -702,7 +730,9 @@ export const recordLike = async (req, res) => {
 
     // Reset daily likes if 24 hours have passed
     const now = new Date();
-    const resetAt = currentUser.dailyLikesResetAt ? new Date(currentUser.dailyLikesResetAt) : new Date(0);
+    const resetAt = currentUser.dailyLikesResetAt
+      ? new Date(currentUser.dailyLikesResetAt)
+      : new Date(0);
     const hoursSinceReset = (now - resetAt) / (1000 * 60 * 60);
 
     let dailyLikesUsed = currentUser.dailyLikesUsed;
@@ -727,17 +757,18 @@ export const recordLike = async (req, res) => {
     const gender = currentUser.gender;
     let dailyLimit;
 
-    if (tier === 'FREE') {
+    if (tier === "FREE") {
       // Women get unlimited likes for free
-      dailyLimit = gender === 'Female' ? null : 10;
-    } else if (tier === 'PREMIUM_MAN') {
+      dailyLimit = gender === "Female" ? null : 10;
+    } else if (tier === "PREMIUM_MAN") {
       dailyLimit = null; // unlimited for men
     }
 
     if (dailyLimit !== null && dailyLikesUsed >= dailyLimit) {
-      const message = tier === 'FREE' && gender === 'Male'
-        ? 'Upgrade to Premium to increase your likes'
-        : 'Daily like limit reached';
+      const message =
+        tier === "FREE" && gender === "Male"
+          ? "Upgrade to Premium to increase your likes"
+          : "Daily like limit reached";
 
       return res.status(403).json({
         error: "Daily like limit reached",
@@ -760,7 +791,8 @@ export const recordLike = async (req, res) => {
         success: true,
         message: "Like already recorded",
         likeId: existingLike.id,
-        remainingLikes: dailyLimit !== null ? dailyLimit - dailyLikesUsed : null,
+        remainingLikes:
+          dailyLimit !== null ? dailyLimit - dailyLikesUsed : null,
       });
     }
 
@@ -800,7 +832,9 @@ export const reportUser = async (req, res) => {
     const userId = req.user.id;
     const { reportedUserId, reason } = req.body;
 
-    console.log(`[REPORT] User ${userId} reporting user ${reportedUserId} for: ${reason}`);
+    console.log(
+      `[REPORT] User ${userId} reporting user ${reportedUserId} for: ${reason}`
+    );
 
     if (!reportedUserId) {
       return res.status(400).json({ error: "reportedUserId is required" });
@@ -811,7 +845,9 @@ export const reportUser = async (req, res) => {
     }
 
     if (reportedUserId === userId) {
-      return res.status(400).json({ error: "You cannot report your own profile" });
+      return res
+        .status(400)
+        .json({ error: "You cannot report your own profile" });
     }
 
     // Verify reported user exists
@@ -831,19 +867,21 @@ export const reportUser = async (req, res) => {
     });
 
     const prefs = parsePreferences(reporterUser?.preferences);
-    
+
     // Initialize reports array if it doesn't exist
     if (!prefs.reports) {
       prefs.reports = [];
     }
 
     // Check if user already reported this profile
-    const alreadyReported = prefs.reports.some(r => r.reportedUserId === reportedUserId);
+    const alreadyReported = prefs.reports.some(
+      (r) => r.reportedUserId === reportedUserId
+    );
     if (alreadyReported) {
       console.log(`[REPORT] User ${userId} already reported ${reportedUserId}`);
       return res.status(200).json({
         success: true,
-        message: "You have already reported this user"
+        message: "You have already reported this user",
       });
     }
 
@@ -866,7 +904,7 @@ export const reportUser = async (req, res) => {
       where: {
         reporterId: userId,
         reportedUserId,
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
 
@@ -880,13 +918,18 @@ export const reportUser = async (req, res) => {
       });
       console.log(`[REPORT] Created Report record: ${newReport.id}`);
     } else {
-      console.log(`[REPORT] Report already exists in DB for ${userId} -> ${reportedUserId}`);
+      console.log(
+        `[REPORT] Report already exists in DB for ${userId} -> ${reportedUserId}`
+      );
     }
 
-    console.log(`[REPORT] Success: Report submitted for user ${reportedUserId}`);
+    console.log(
+      `[REPORT] Success: Report submitted for user ${reportedUserId}`
+    );
     return res.status(201).json({
       success: true,
-      message: "Report submitted successfully. The account has been flagged for moderation.",
+      message:
+        "Report submitted successfully. The account has been flagged for moderation.",
     });
   } catch (err) {
     console.error("Report user error:", err);
@@ -899,18 +942,20 @@ export const updateLocation = async (req, res) => {
   try {
     const userId = req.user.id;
     const { lat, lng } = req.body;
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
-      return res.status(400).json({ error: 'lat and lng must be numbers' });
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return res.status(400).json({ error: "lat and lng must be numbers" });
     }
     const locString = `${lat},${lng}`;
     const updated = await prisma.user.update({
       where: { id: userId },
       data: { currentLocation: locString },
     });
-    return res.status(200).json({ success: true, location: updated.currentLocation });
+    return res
+      .status(200)
+      .json({ success: true, location: updated.currentLocation });
   } catch (err) {
-    console.error('Update location error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("Update location error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -930,16 +975,18 @@ export const useBacktrack = async (req, res) => {
 
     // Check subscription tier
     const tier = user.subscriptionTier;
-    if (tier === 'FREE') {
+    if (tier === "FREE") {
       return res.status(403).json({
-        error: 'Backtrack is not available for free users',
-        message: 'Upgrade to Premium for unlimited backtracks',
+        error: "Backtrack is not available for free users",
+        message: "Upgrade to Premium for unlimited backtracks",
       });
     }
 
     // Reset daily backtracks if 24 hours have passed
     const now = new Date();
-    const resetAt = user.dailyBacktracksResetAt ? new Date(user.dailyBacktracksResetAt) : new Date(0);
+    const resetAt = user.dailyBacktracksResetAt
+      ? new Date(user.dailyBacktracksResetAt)
+      : new Date(0);
     const hoursSinceReset = (now - resetAt) / (1000 * 60 * 60);
 
     let dailyBacktracksUsed = user.dailyBacktracksUsed;
@@ -956,16 +1003,16 @@ export const useBacktrack = async (req, res) => {
 
     // Premium users (both men and women) have unlimited backtracks
     let dailyLimit;
-    if (tier === 'PREMIUM_MAN' || tier === 'PREMIUM_WOMAN') {
+    if (tier === "PREMIUM_MAN" || tier === "PREMIUM_WOMAN") {
       dailyLimit = null; // unlimited for all premium subscribers
     }
 
     if (dailyLimit !== null && dailyBacktracksUsed >= dailyLimit) {
       return res.status(403).json({
-        error: 'Daily backtrack limit reached',
+        error: "Daily backtrack limit reached",
         limit: dailyLimit,
         tier: tier,
-        message: 'Upgrade to Premium for unlimited backtracks',
+        message: "Upgrade to Premium for unlimited backtracks",
       });
     }
 
@@ -980,14 +1027,15 @@ export const useBacktrack = async (req, res) => {
     const newBacktracksUsed = dailyBacktracksUsed + 1;
     return res.status(200).json({
       success: true,
-      message: 'Backtrack successful',
+      message: "Backtrack successful",
       dailyBacktracksUsed: newBacktracksUsed,
       dailyLimit: dailyLimit,
-      remainingBacktracks: dailyLimit !== null ? dailyLimit - newBacktracksUsed : null,
+      remainingBacktracks:
+        dailyLimit !== null ? dailyLimit - newBacktracksUsed : null,
     });
   } catch (err) {
-    console.error('Backtrack error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("Backtrack error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -1003,10 +1051,10 @@ export const setTravelMode = async (req, res) => {
     });
 
     const tier = user.subscriptionTier;
-    if (tier !== 'PREMIUM_MAN' && tier !== 'PREMIUM_WOMAN') {
+    if (tier !== "PREMIUM_MAN" && tier !== "PREMIUM_WOMAN") {
       return res.status(403).json({
-        error: 'Travel mode is only available for Premium subscribers',
-        message: 'Upgrade to Premium to use travel mode',
+        error: "Travel mode is only available for Premium subscribers",
+        message: "Upgrade to Premium to use travel mode",
       });
     }
 
@@ -1029,7 +1077,53 @@ export const setTravelMode = async (req, res) => {
       travelModeLocation: updated.travelModeLocation,
     });
   } catch (err) {
-    console.error('Set travel mode error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("Set travel mode error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const uploadSelfie = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    // Convert to base64 for Cloudinary (same as uploadImage)
+    const base64Image = req.file.buffer.toString("base64");
+    const dataURI = `data:${req.file.mimetype};base64,${base64Image}`;
+
+    const uploadOptions = {
+      folder: "valise-selfies",
+      resource_type: "auto",
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      transformation: [
+        { width: 1000, height: 1000, crop: "limit" },
+        { quality: "auto" },
+      ],
+    };
+
+    const result = await cloudinary.uploader.upload(dataURI, uploadOptions);
+
+    // Save selfie info to user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        selfiePhotoUrl: result.secure_url,
+        selfiePublicId: result.public_id,
+        selfieVerified: false, // reset if re-uploaded
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Selfie uploaded successfully",
+      selfiePhotoUrl: result.secure_url,
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("Upload selfie error:", err);
+    return res.status(500).json({ error: "Failed to upload selfie" });
   }
 };

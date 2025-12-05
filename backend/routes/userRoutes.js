@@ -17,6 +17,7 @@ import {
   updateLocation,
   useBacktrack,
   setTravelMode,
+  uploadSelfie
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -36,12 +37,22 @@ const handleUploadError = (err, req, res, next) => {
 };
 
 router.post(
-  "/upload-image", 
-  authMiddleware, 
-  upload.single("image"), 
+  "/upload-image",
+  authMiddleware,
+  upload.single("image"),
   handleUploadError,
   uploadImage
 );
+
+// ⭐ NEW SELFIE UPLOAD ROUTE ⭐
+router.post(
+  "/upload-selfie",
+  authMiddleware,
+  upload.single("selfie"),  // frontend field: formData.append("selfie", file)
+  handleUploadError,
+  uploadSelfie
+);
+
 router.put("/update-profile", authMiddleware, updateProfile);
 router.put("/update-preferences", authMiddleware, updatePreferences);
 router.put("/update-location", authMiddleware, updateLocation);
