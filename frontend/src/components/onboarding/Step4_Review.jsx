@@ -6,6 +6,16 @@ const Step4_Review = ({ formData }) => {
   const b = formData.birthday || {};
   const dateDisplay = b.day && b.month && b.year ? `${b.month}/${b.day}/${b.year}` : "Not set";
 
+  // Function to clean location display (never show raw coordinates)
+  const getCleanLocation = (location) => {
+    if (!location) return "N/A";
+    // If location contains coordinates (has comma and numbers like "13.0721,77.7922"), hide it
+    if (/^\d+\.\d+,\d+\.\d+$/.test(location)) {
+      return "Location not set";
+    }
+    return location;
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 max-w-6xl w-full">
       {/* LEFT */}
@@ -42,7 +52,7 @@ const Step4_Review = ({ formData }) => {
             <li><span className="font-semibold text-gray-600">Gender:</span> <span className="text-black">{formData.gender || "N/A"}</span></li>
             <li><span className="font-semibold text-gray-600">Work:</span> <span className="text-black">{formData.work || "N/A"}</span></li>
             <li><span className="font-semibold text-gray-600">Height:</span> <span className="text-black">{formData.height || "N/A"}</span></li>
-            <li><span className="font-semibold text-gray-600">Current Location:</span> <span className="text-black">{formData.currentLocation || "N/A"}</span></li>
+            <li><span className="font-semibold text-gray-600">Current Location:</span> <span className="text-black">{getCleanLocation(formData.currentLocation)}</span></li>
             <li><span className="font-semibold text-gray-600">Hometown:</span> <span className="text-black">{formData.hometown || "N/A"}</span></li>
           </ul>
         </div>

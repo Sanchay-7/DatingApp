@@ -185,11 +185,9 @@ export default function SettingsPage() {
             );
             const data = await response.json();
             if (data.address) {
-                const city = data.address.city || data.address.town || data.address.village || data.address.county;
-                const state = data.address.state;
-                const country = data.address.country;
-                const placeName = [city, state, country].filter(Boolean).join(', ');
-                setLocationName(placeName || 'Unknown location');
+                // Priority: city > town > village > district > county (shows Bangalore instead of district)
+                const location = data.address.city || data.address.town || data.address.village || data.address.district || data.address.county;
+                setLocationName(location || 'Unknown location');
             } else {
                 setLocationName('Unknown location');
             }

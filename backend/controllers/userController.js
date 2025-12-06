@@ -73,7 +73,7 @@ const formatRecommendationProfile = (candidate) => {
     gender: candidate.gender,
     age: calculateAge(candidate.birthday),
     birthday: candidate.birthday,
-    distance: candidate.currentLocation || "Nearby",
+    currentLocation: candidate.currentLocation || "", // Send location for reverse geocoding on frontend, not distance
     job: candidate.work || "",
     mainPhoto: photos[0] || null,
     extraPhotos: photos.slice(1),

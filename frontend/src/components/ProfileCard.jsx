@@ -1,6 +1,6 @@
 // components/ProfileCard.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertCircle, MessageCircle, Heart, X } from 'lucide-react';
 
 // Receives the current profile data and action handlers from dashboard page
@@ -9,6 +9,66 @@ export default function ProfileCard({ profile, onLike, onSkip, onReport }) {
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportReason, setReportReason] = useState('');
     const [isReporting, setIsReporting] = useState(false);
+    const [profileLocation, setProfileLocation] = useState(null);
+    const [calculatedDistance, setCalculatedDistance] = useState(profile?.distance || 'Nearby');
+
+    // Function to calculate distance in km between two coordinates
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c);
+    };
+
+    // Function to reverse geocode coordinates to place name (city/district only)
+    const reverseGeocode = async (latLng) => {
+        try {
+            const [lat, lng] = latLng.split(',').map(s => s.trim());
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`
+            );
+            const data = await response.json();
+            if (data.address) {
+                // Priority: city > town > village > district > county (shows Bangalore instead of Bangalore Urban)
+                const location = data.address.city || data.address.town || data.address.village || data.address.district || data.address.county;
+                setProfileLocation(location || 'Unknown');
+            } else {
+                setProfileLocation('Unknown');
+            }
+        } catch (err) {
+            console.error('Reverse geocoding failed:', err);
+            setProfileLocation('Unknown');
+        }
+    };
+
+    // Get current user location and calculate distance
+    useEffect(() => {
+        if (profile?.currentLocation && profile.currentLocation.includes(',')) {
+            // Reverse geocode the profile location
+            reverseGeocode(profile.currentLocation);
+            
+            // Try to get current user location for distance calculation
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLon = position.coords.longitude;
+                        const [profileLat, profileLon] = profile.currentLocation.split(',').map(s => parseFloat(s.trim()));
+                        const distance = calculateDistance(userLat, userLon, profileLat, profileLon);
+                        setCalculatedDistance(`${distance} km away`);
+                    },
+                    () => {
+                        // If location permission denied, just show the stored distance
+                        setCalculatedDistance(profile?.distance || 'Nearby');
+                    }
+                );
+            }
+        }
+    }, [profile?.currentLocation, profile?.distance]);
 
     if (!profile) return null;
 
@@ -120,7 +180,10 @@ export default function ProfileCard({ profile, onLike, onSkip, onReport }) {
                             {profile.age ? `, ${profile.age}` : ""}
                         </h2>
                         <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-2 sm:mb-4">
-                            {profile.distance || "Nearby"} away
+                            {calculatedDistance}
+                        </p>
+                        <p className="text-base sm:text-lg text-gray-500 mb-2">
+                            {profileLocation || 'Location loading...'}
                         </p>
                         <p className="text-base sm:text-lg text-pink-600 font-semibold">
                             {profile.job || "Valise Member"}
@@ -160,7 +223,7 @@ export default function ProfileCard({ profile, onLike, onSkip, onReport }) {
                         <div className="p-3 sm:p-4 bg-white rounded-lg shadow-md">
                             <p className="text-gray-600 text-xs sm:text-sm">Location</p>
                             <p className="text-lg sm:text-xl font-semibold text-gray-900">
-                                {profile.distance || "Nearby"}
+                                {profileLocation || "Location loading..."}
                             </p>
                         </div>
                         <div className="p-3 sm:p-4 bg-white rounded-lg shadow-md">

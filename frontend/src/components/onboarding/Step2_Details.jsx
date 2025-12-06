@@ -3,6 +3,50 @@ import React, { useState, useEffect } from "react";
 
 const Step2_Details = ({ formData, updateFormData, ageValidationError }) => {
     const [showGender, setShowGender] = useState(false);
+    const [locationLoading, setLocationLoading] = useState(false);
+
+    // Reverse geocode coordinates to place name (city/district only)
+    const reverseGeocode = async (latitude, longitude) => {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await response.json();
+            // Priority: city > town > village > district > county (shows Bangalore instead of district)
+            const location = data.address?.city || data.address?.town || data.address?.village || data.address?.district || data.address?.county || 'Unknown';
+            return location;
+        } catch (error) {
+            console.error('Reverse geocoding failed:', error);
+            return 'Unknown location';
+        }
+    };
+
+    // Fetch current location on component mount
+    useEffect(() => {
+        const fetchLocation = async () => {
+            if (!formData.currentLocation) {
+                setLocationLoading(true);
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            timeout: 5000,
+                            enableHighAccuracy: false
+                        });
+                    });
+                    const placeName = await reverseGeocode(
+                        position.coords.latitude,
+                        position.coords.longitude
+                    );
+                    updateFormData({ ...formData, currentLocation: placeName });
+                } catch (error) {
+                    console.log('Location access denied or unavailable:', error);
+                }
+                setLocationLoading(false);
+            }
+        };
+
+        fetchLocation();
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -159,6 +203,9 @@ const Step2_Details = ({ formData, updateFormData, ageValidationError }) => {
                                 className="block text-black text-base font-semibold"
                             >
                                 {label}
+                                {key === "currentLocation" && locationLoading && (
+                                    <span className="text-sm text-gray-500 ml-2">(fetching...)</span>
+                                )}
                             </label>
                             <input
                                 type="text"
@@ -167,7 +214,8 @@ const Step2_Details = ({ formData, updateFormData, ageValidationError }) => {
                                 value={formData[key] || ""}
                                 onChange={handleChange}
                                 placeholder={placeholder}
-                                className="w-full bg-white border border-gray-300 text-black p-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 placeholder:text-gray-500"
+                                disabled={key === "currentLocation" && locationLoading}
+                                className="w-full bg-white border border-gray-300 text-black p-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 placeholder:text-gray-500 disabled:bg-gray-100"
                             />
                         </div>
                     ))}
