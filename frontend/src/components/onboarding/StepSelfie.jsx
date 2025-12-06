@@ -44,13 +44,21 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
             });
             
             console.log('[CAMERA] Permission granted! Stream obtained:', mediaStream);
+            console.log('[CAMERA] Active tracks:', mediaStream.getVideoTracks());
             
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-                setStream(mediaStream);
-                setCameraStarted(true);
-                console.log('[CAMERA] Video stream attached to video element');
-            }
+            setStream(mediaStream);
+            setCameraStarted(true);
+            
+            // Use useEffect to handle video element after state update
+            setTimeout(() => {
+                if (videoRef.current && mediaStream) {
+                    console.log('[CAMERA] Setting srcObject on video element');
+                    videoRef.current.srcObject = mediaStream;
+                    videoRef.current.play()
+                        .then(() => console.log('[CAMERA] Video playing successfully'))
+                        .catch(err => console.error('[CAMERA] Play error:', err));
+                }
+            }, 100);
         } catch (err) {
             console.error('[CAMERA] Error accessing camera:', err);
             console.error('[CAMERA] Error name:', err.name);
@@ -135,7 +143,14 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
             
             // Create FormData for upload
             const uploadFormData = new FormData();
-            uploadFormData.append('image', capturedImage.blob, 'selfie.jpg');
+            // Handle both blob (from camera) and file (from file input)
+            if (capturedImage.blob) {
+                uploadFormData.append('image', capturedImage.blob, 'selfie.jpg');
+            } else if (capturedImage.file) {
+                uploadFormData.append('image', capturedImage.file);
+            } else {
+                throw new Error('No image data found');
+            }
 
             const uploadResponse = await fetch(`${API_BASE}/api/user/upload-image`, {
                 method: 'POST',
@@ -173,61 +188,13 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        setIsUploading(true);
+        // Create preview URL and store file
+        const previewUrl = URL.createObjectURL(file);
+        setCapturedImage({ file, url: previewUrl });
         setError('');
-
-        try {
-            // Create preview URL first
-            const previewUrl = URL.createObjectURL(file);
-            setCapturedImage({ file, url: previewUrl });
-
-            const token = localStorage.getItem('valise_token');
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-            
-            const uploadFormData = new FormData();
-            uploadFormData.append('image', file);
-
-            console.log('[FILE-UPLOAD] Uploading file:', file.name);
-
-            const uploadResponse = await fetch(`${API_BASE}/api/user/upload-image`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: uploadFormData,
-            });
-
-            console.log('[FILE-UPLOAD] Upload response status:', uploadResponse.status);
-
-            if (!uploadResponse.ok) {
-                const errorData = await uploadResponse.json().catch(() => ({}));
-                console.error('[FILE-UPLOAD] Upload failed:', errorData);
-                throw new Error(errorData.error || 'Failed to upload selfie');
-            }
-
-            const uploadData = await uploadResponse.json();
-            console.log('[FILE-UPLOAD] Upload successful:', uploadData);
-
-            // Update form data with selfie info
-            updateFormData({
-                ...formData,
-                selfiePhotoUrl: uploadData.url,
-                selfiePublicId: uploadData.public_id,
-            });
-
-            // Move to next step
-            goToNext();
-        } catch (err) {
-            console.error('[FILE-UPLOAD] Error:', err);
-            setError(`❌ Failed to upload selfie: ${err.message}. Please try again.`);
-            setCapturedImage(null); // Clear preview if upload fails
-        } finally {
-            setIsUploading(false);
-        }
+        
+        // Note: Upload happens when user clicks "Confirm & Continue"
+        // This just shows the preview
     };
 
     // Cleanup on unmount
@@ -303,13 +270,15 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
 
                     {/* Video Stream */}
                     {cameraStarted && !capturedImage && (
-                        <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                        />
+                        <div className="absolute inset-0 w-full h-full bg-black">
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
                     )}
 
                     {/* Captured Image Preview */}
@@ -335,6 +304,7 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
 
                 {/* Action Buttons */}
                 <div className="mt-6 flex gap-4">
+                    {/* Capture button - only show when camera is started and no image captured */}
                     {cameraStarted && !capturedImage && (
                         <button
                             onClick={capturePhoto}
@@ -345,50 +315,32 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
                         </button>
                     )}
 
-                    {capturedImage && (
-                        <>
-                            <button
-                                onClick={retakePhoto}
-                                disabled={isUploading}
-                                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <RotateCcw className="w-5 h-5 mr-2" />
-                                Retake
-                            </button>
-                            <button
-                                onClick={uploadSelfie}
-                                disabled={isUploading}
-                                className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle className="w-5 h-5 mr-2" />
-                                        Confirm & Continue
-                                    </>
-                                )}
-                            </button>
-                        </>
-                    )}
-
-                    {/* File upload fallback - show continue button after file selected */}
-                    {useFileUpload && capturedImage && !cameraStarted && (
+                    {/* Retake and Continue buttons - show when image is captured (from camera OR file) */}
+                    {capturedImage && !cameraStarted && (
                         <>
                             <button
                                 onClick={() => {
-                                    setCapturedImage(null);
-                                    setUseFileUpload(false);
-                                    setError('');
+                                    if (capturedImage) {
+                                        URL.revokeObjectURL(capturedImage.url);
+                                        setCapturedImage(null);
+                                    }
+                                    if (useFileUpload) {
+                                        // If using file upload, clear the file input and reset
+                                        if (fileInputRef.current) {
+                                            fileInputRef.current.value = '';
+                                        }
+                                        setUseFileUpload(false);
+                                        setError('');
+                                    } else {
+                                        // If using camera, restart camera
+                                        startCamera();
+                                    }
                                 }}
                                 disabled={isUploading}
                                 className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <RotateCcw className="w-5 h-5 mr-2" />
-                                Choose Different
+                                {useFileUpload ? 'Choose Different' : 'Retake'}
                             </button>
                             <button
                                 onClick={uploadSelfie}

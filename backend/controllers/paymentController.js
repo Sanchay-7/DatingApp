@@ -21,6 +21,12 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
+    // ✅ Validate environment configuration
+    if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+      console.error("Cashfree credentials missing. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.");
+      return res.status(500).json({ error: "Payment gateway not configured" });
+    }
+
     // ✅ Check user existence
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -66,12 +72,12 @@ export const createOrder = async (req, res) => {
     });
 
     const data = await response.json();
-    console.log("Cashfree response:", data);
+    console.log("Cashfree response (status", response.status, "):", data);
 
     // ✅ NEW CHECK
     if (!data.order_id) {
       console.error("Cashfree API did not return order_id:", data);
-      return res.status(500).json({ error: "Failed to create order", data });
+      return res.status(500).json({ error: "Failed to create order", gateway: data });
     }
 
     // Save order in DB

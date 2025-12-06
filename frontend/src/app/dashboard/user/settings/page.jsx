@@ -19,6 +19,7 @@ const MIN_AGE_LIMIT = 18;
 export default function SettingsPage() {
     const [settings, setSettings] = useState(null);
     const [currentLocation, setCurrentLocation] = useState(null);
+    const [locationName, setLocationName] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [feedback, setFeedback] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -41,7 +42,12 @@ export default function SettingsPage() {
                         ...DEFAULT_SETTINGS,
                         ...(settingsData.settings || {}),
                     });
-                    setCurrentLocation(meData?.user?.currentLocation || null);
+                    const location = meData?.user?.currentLocation || null;
+                    setCurrentLocation(location);
+                    // Convert lat/lng to place name
+                    if (location && location.includes(',')) {
+                        reverseGeocode(location);
+                    }
                     setFeedback(null);
                 }
             } catch (error) {
@@ -171,6 +177,28 @@ export default function SettingsPage() {
             });
     };
 
+    const reverseGeocode = async (latLng) => {
+        try {
+            const [lat, lng] = latLng.split(',').map(s => s.trim());
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`
+            );
+            const data = await response.json();
+            if (data.address) {
+                const city = data.address.city || data.address.town || data.address.village || data.address.county;
+                const state = data.address.state;
+                const country = data.address.country;
+                const placeName = [city, state, country].filter(Boolean).join(', ');
+                setLocationName(placeName || 'Unknown location');
+            } else {
+                setLocationName('Unknown location');
+            }
+        } catch (err) {
+            console.error('Reverse geocoding failed:', err);
+            setLocationName('Unknown location');
+        }
+    };
+
     const refreshLocation = async () => {
         setFeedback(null);
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -179,11 +207,13 @@ export default function SettingsPage() {
         }
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
+                const latLng = `${pos.coords.latitude},${pos.coords.longitude}`;
                 await authFetch("/api/user/update-location", {
                     method: "PUT",
                     body: { lat: pos.coords.latitude, lng: pos.coords.longitude },
                 });
-                setCurrentLocation(`${pos.coords.latitude},${pos.coords.longitude}`);
+                setCurrentLocation(latLng);
+                await reverseGeocode(latLng);
                 setFeedback("Location updated");
             } catch (err) {
                 setFeedback(err.message || "Failed to update location");
@@ -249,7 +279,7 @@ export default function SettingsPage() {
                     <div className="mb-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-gray-600">Current location</p>
-                            <p className="text-gray-900 text-sm font-medium">{currentLocation || 'Unknown'}</p>
+                            <p className="text-gray-900 text-sm font-medium">{locationName || 'Unknown'}</p>
                         </div>
                         <button type="button" onClick={refreshLocation} className="px-3 py-2 text-sm rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">
                             Refresh Location

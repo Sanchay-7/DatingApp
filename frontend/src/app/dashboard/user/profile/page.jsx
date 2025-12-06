@@ -25,12 +25,20 @@ const calculateAge = (birthday) => {
 const buildEditorProfile = (user) => {
     if (!user) return null;
     const prefs = user.preferences || {};
+    
+    // Convert lat/lng to place name if available
+    let locationDisplay = user.currentLocation || "";
+    if (locationDisplay && locationDisplay.includes(',')) {
+        // Extract city/state from coordinates (will be replaced by reverse geocoding in real-time)
+        locationDisplay = ""; // Hide coordinates, let component fetch place name
+    }
+    
     return {
         name: user.name || user.firstName || "",
         age: calculateAge(user.birthday),
         bio: prefs.bio || "",
         job: user.work || "",
-        location: user.currentLocation || "",
+        location: locationDisplay,
         interests: Array.isArray(prefs.interests) ? prefs.interests : [],
     };
 };

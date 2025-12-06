@@ -44,7 +44,9 @@ export default function PremiumPage() {
     const loadUserData = async () => {
       try {
         const response = await authFetch('/api/user/me');
-        setUserTier(response.user?.subscriptionTier || 'FREE');
+        const backendTier = response.user?.subscriptionTier || 'FREE';
+        const normalizedTier = backendTier === 'PREMIUM_MAN' ? 'PREMIUM' : backendTier;
+        setUserTier(normalizedTier);
         setUserGender(response.user?.gender);
         
         // Redirect women to dashboard (premium is only for men)
@@ -61,7 +63,9 @@ export default function PremiumPage() {
   }, [router]);
 
   const handleUpgrade = async (tier) => {
-    if (userTier === tier) {
+    // Normalize current tier for comparison
+    const currentTier = userTier === 'PREMIUM_MAN' ? 'PREMIUM' : userTier;
+    if (currentTier === tier) {
       setErrorMessage(`You already have ${tier} subscription`);
       return;
     }

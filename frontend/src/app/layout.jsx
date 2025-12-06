@@ -7,6 +7,9 @@ import LocationUpdater from "@/components/LocationUpdater";
 export const metadata = {
     title: "DatingApp",
     description: "Dating Web App Dashboard",
+    other: {
+        'permissions-policy': 'camera=(self), microphone=(self), geolocation=(self)',
+    },
 };
 
 // This function must be the default export

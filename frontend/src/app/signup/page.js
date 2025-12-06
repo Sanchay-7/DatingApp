@@ -33,6 +33,20 @@ export default function SignUp() {
     try {
       if (typeof window === "undefined") return;
 
+      // Ensure the recaptcha container is present
+      if (!document.getElementById("recaptcha-container")) {
+        alert("Recaptcha not ready. Please refresh and try again.");
+        return;
+      }
+
+      // Recreate verifier each time to avoid 'client element removed' errors
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (_) {}
+        window.recaptchaVerifier = null;
+      }
+
       // ✅ Normalize phone number
       let phone = formData.phone.trim();
       if (!phone.startsWith("+")) {
@@ -40,13 +54,14 @@ export default function SignUp() {
       }
 
       // ✅ Create recaptcha
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(
-          auth,
-          "recaptcha-container",
-          { size: "invisible" }
-        );
-      }
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        { size: "invisible" }
+      );
+
+      // Render to bind to DOM immediately
+      await window.recaptchaVerifier.render();
 
       const confirmation = await signInWithPhoneNumber(
         auth,
@@ -69,22 +84,33 @@ export default function SignUp() {
 
     try {
       await confirmationResult.confirm(otp);
-      const idToken = await auth.currentUser.getIdToken();
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Authentication failed. Please resend OTP.");
+        return;
+      }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/signup`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: formData.email,
-            phoneNumber: formData.phone,
-            password: formData.password,
-            firstName: "User",
-            firebaseToken: idToken,
-          }),
-        }
-      );
+      const idToken = await user.getIdToken(true);
+
+      // Normalize phone exactly like the OTP step so Firebase claim matches backend check
+      let phoneNumber = formData.phone.trim();
+      if (!phoneNumber.startsWith("+")) {
+        phoneNumber = "+91" + phoneNumber;
+      }
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          phoneNumber,
+          password: formData.password,
+          firstName: "User",
+          firebaseToken: idToken,
+        }),
+      });
 
       const data = await res.json();
       if (res.ok) {
@@ -102,7 +128,8 @@ export default function SignUp() {
         
         router.push("/profile-setup");
       } else {
-        alert("❌ " + data.error);
+        console.error("Signup failed", res.status, data);
+        alert("❌ " + (data?.error || "Signup failed"));
       }
     } catch (error) {
       console.error("OTP Verify Error:", error);

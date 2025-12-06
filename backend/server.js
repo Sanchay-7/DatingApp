@@ -37,17 +37,35 @@ if (process.env.NODE_ENV === "production") {
   app.use(morgan("dev"));
 }
 
-// Rate limiting
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:3000"];
+
+// CORS must run BEFORE any rate limiting so preflight gets headers
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Rate limiting (after CORS)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Limit each IP to 100 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  // Skip preflight and lightweight user reads to avoid throttling the app shell
   skip: (req) => {
     if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
-    // Allow common user dashboard reads without counting towards rate limit
     if (req.method === 'GET' && (
       req.path.startsWith('/api/user/me') ||
       req.path.startsWith('/api/user/settings') ||
@@ -63,32 +81,12 @@ app.use("/api/", limiter);
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 50, // relax for dev
   message: 'Too many authentication attempts, please try again later.',
   skip: (req) => req.method === 'OPTIONS' || req.method === 'HEAD',
 });
 app.use("/api/auth/signin", authLimiter);
 app.use("/api/auth/signup", authLimiter);
-
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:3000"];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-  // CORS must be configured before any rate limiting to avoid 429 on preflight
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
