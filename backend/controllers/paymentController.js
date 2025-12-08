@@ -16,9 +16,15 @@ export const createOrder = async (req, res) => {
     const { userId, amount, email, phone, subscriptionTier } = req.body;
 
     // ✅ Check required parameters
-    if (!userId || !amount || !email || !phone) {
+    if (!userId || amount === undefined || amount === null || !email || !phone) {
       console.error("Missing parameters:", { userId, amount, email, phone });
       return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    // ✅ Validate amount is positive
+    if (Number(amount) <= 0 || Number.isNaN(Number(amount))) {
+      console.error("Invalid amount:", amount);
+      return res.status(400).json({ error: "Amount must be a positive number" });
     }
 
     // ✅ Validate environment configuration
@@ -42,18 +48,28 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    // ✅ CRITICAL FIX: Generate unique order_id
+    const orderId = `order_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // ✅ FIXED: Correct payload structure for Cashfree API
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const safeFrontendUrl = frontendUrl.replace(/^http:/, 'https:');
+    const safeBackendUrl = backendUrl.replace(/^http:/, 'https:');
+
     const orderData = {
-      order_amount: Number(amount),
+      order_id: orderId, // ⭐ REQUIRED FIELD - was missing
+      order_amount: Number(amount), // Keep numeric; Cashfree accepts number
       order_currency: "INR",
       order_note: `Valise ${subscriptionTier || 'Premium'} Subscription`,
       customer_details: {
         customer_id: userId,
         customer_email: email,
-        customer_phone: phone,
+        customer_phone: phone.toString(), // Ensure string format
       },
       order_meta: {
-        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success`,
-        notify_url: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payment/webhook`,
+        return_url: `${safeFrontendUrl}/payment-success?order_id={order_id}`,
+        notify_url: `${safeBackendUrl}/api/payment/webhook`,
       },
     };
 
@@ -66,7 +82,7 @@ export const createOrder = async (req, res) => {
         "Content-Type": "application/json",
         "x-client-id": process.env.CASHFREE_APP_ID,
         "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-        "x-api-version": "2022-09-01",
+        "x-api-version": "2025-01-01", // Cashfree v5 (2025-01-01)
       },
       body: JSON.stringify(orderData),
     });
@@ -74,8 +90,8 @@ export const createOrder = async (req, res) => {
     const data = await response.json();
     console.log("Cashfree response (status", response.status, "):", data);
 
-    // ✅ NEW CHECK - Log more details for debugging
-    if (!data.order_id) {
+    // ✅ Enhanced error handling
+    if (!response.ok || !data.payment_session_id) {
       console.error("Cashfree API error details:", {
         status: response.status,
         statusText: response.statusText,
@@ -88,25 +104,23 @@ export const createOrder = async (req, res) => {
           url: url
         }
       });
-      return res.status(500).json({ 
+      
+      return res.status(response.status || 500).json({ 
         error: "Failed to create order", 
-        gateway: data,
-        debug: {
-          status: response.status,
-          message: data.message || data.error || "Unknown error",
-          type: data.type || "Unknown"
-        }
+        message: data.message || data.error_message || "Unknown error from Cashfree",
+        code: data.code || data.error_code,
+        type: data.type,
+        details: data
       });
     }
 
-    // Save order in DB
-    // Convert "PREMIUM" to "PREMIUM_MAN" for database storage
+    // Save order in DB with the generated order_id
     const dbSubscriptionTier = (subscriptionTier || "PREMIUM") === "PREMIUM" ? "PREMIUM_MAN" : subscriptionTier;
     
     const payment = await prisma.payment.create({
       data: {
         userId,
-        orderId: data.order_id,
+        orderId: orderId, // ⭐ Use our generated order_id
         amount: Number(amount),
         currency: "INR",
         status: "PENDING",
@@ -117,7 +131,7 @@ export const createOrder = async (req, res) => {
     // Return payment session ID for Cashfree SDK integration
     res.status(201).json({ 
       success: true,
-      orderId: data.order_id,
+      orderId: orderId,
       paymentSessionId: data.payment_session_id,
       orderAmount: data.order_amount,
       orderCurrency: data.order_currency,
@@ -126,7 +140,11 @@ export const createOrder = async (req, res) => {
 
   } catch (err) {
     console.error("Create order unexpected error:", err);
-    res.status(500).json({ error: "Internal server error", details: err.message });
+    res.status(500).json({ 
+      error: "Internal server error", 
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
@@ -152,7 +170,7 @@ export const verifyPayment = async (req, res) => {
         "Content-Type": "application/json",
         "x-client-id": process.env.CASHFREE_APP_ID,
         "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-        "x-api-version": "2022-09-01",
+        "x-api-version": "2025-01-01",
       },
     });
 
