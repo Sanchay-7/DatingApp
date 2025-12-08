@@ -327,64 +327,91 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
                 )}
 
                 {/* Action Buttons */}
-                <div className="mt-6 flex gap-4">
-                    {/* Capture button - only show when camera is started and no image captured */}
-                    {cameraStarted && !capturedImage && (
+                <div className="mt-6 flex flex-col gap-3">
+                    <div className="flex gap-3">
+                        {/* Capture button - only show when camera is started and no image captured */}
+                        {cameraStarted && !capturedImage && (
+                            <button
+                                onClick={capturePhoto}
+                                className="flex-1 px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold transition flex items-center justify-center"
+                            >
+                                <Camera className="w-5 h-5 mr-2" />
+                                Capture Photo
+                            </button>
+                        )}
+
+                        {/* Retake and Continue buttons - show when image is captured (from camera OR file) */}
+                        {capturedImage && !cameraStarted && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        if (capturedImage) {
+                                            URL.revokeObjectURL(capturedImage.url);
+                                            setCapturedImage(null);
+                                        }
+                                        if (useFileUpload) {
+                                            // If using file upload, clear the file input and reset
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.value = '';
+                                            }
+                                            setUseFileUpload(false);
+                                            setError('');
+                                        } else {
+                                            // If using camera, restart camera
+                                            startCamera();
+                                        }
+                                    }}
+                                    disabled={isUploading}
+                                    className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <RotateCcw className="w-5 h-5 mr-2" />
+                                    {useFileUpload ? 'Choose Different' : 'Retake'}
+                                </button>
+                                <button
+                                    onClick={uploadSelfie}
+                                    disabled={isUploading}
+                                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isUploading ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="w-5 h-5 mr-2" />
+                                            Confirm & Continue
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Always show Upload Manual Photos button as alternative */}
+                    {!capturedImage && (
                         <button
-                            onClick={capturePhoto}
-                            className="flex-1 px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-semibold transition flex items-center justify-center"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500"
                         >
-                            <Camera className="w-5 h-5 mr-2" />
-                            Capture Photo
+                            {isUploading ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                <>📁 Upload Manual Photo</>
+                            )}
                         </button>
                     )}
-
-                    {/* Retake and Continue buttons - show when image is captured (from camera OR file) */}
-                    {capturedImage && !cameraStarted && (
-                        <>
-                            <button
-                                onClick={() => {
-                                    if (capturedImage) {
-                                        URL.revokeObjectURL(capturedImage.url);
-                                        setCapturedImage(null);
-                                    }
-                                    if (useFileUpload) {
-                                        // If using file upload, clear the file input and reset
-                                        if (fileInputRef.current) {
-                                            fileInputRef.current.value = '';
-                                        }
-                                        setUseFileUpload(false);
-                                        setError('');
-                                    } else {
-                                        // If using camera, restart camera
-                                        startCamera();
-                                    }
-                                }}
-                                disabled={isUploading}
-                                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <RotateCcw className="w-5 h-5 mr-2" />
-                                {useFileUpload ? 'Choose Different' : 'Retake'}
-                            </button>
-                            <button
-                                onClick={uploadSelfie}
-                                disabled={isUploading}
-                                className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle className="w-5 h-5 mr-2" />
-                                        Confirm & Continue
-                                    </>
-                                )}
-                            </button>
-                        </>
-                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                    />
                 </div>
             </section>
 
