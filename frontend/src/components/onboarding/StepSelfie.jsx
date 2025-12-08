@@ -74,20 +74,24 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
             console.error('[CAMERA] Error name:', err.name);
             console.error('[CAMERA] Error message:', err.message);
             
-            // Provide specific error messages
+            // Provide specific error messages and automatically switch to file upload
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                setError('❌ Camera permission blocked. To enable it:\n\n1. Click the lock/camera icon 🔒 in the address bar\n2. Find "Camera" in the popup menu\n3. Change from "Block" to "Allow"\n4. Refresh this page and try again\n\nOr use the file upload option below as an alternative.');
-                setUseFileUpload(true); // Show fallback option
+                setError('📷 Camera permission was blocked.\n\n✅ No worries! You can upload a selfie photo instead using the button below.');
+                setUseFileUpload(true);
             } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                setError('❌ No camera detected. Please connect a camera and try again.');
+                setError('📷 No camera detected on your device.\n\n✅ You can upload a selfie photo instead using the button below.');
+                setUseFileUpload(true);
             } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                setError('❌ Camera is already in use by another app. Close other apps using the camera (Zoom, Teams, etc.) and try again.');
+                setError('📷 Camera is being used by another app.\n\n✅ You can upload a selfie photo instead using the button below.');
+                setUseFileUpload(true);
             } else if (err.name === 'OverconstrainedError') {
-                setError('❌ Camera does not meet requirements. Try a different camera or browser.');
+                setError('📷 Camera quality requirements not met.\n\n✅ You can upload a selfie photo instead using the button below.');
+                setUseFileUpload(true);
             } else if (err.name === 'SecurityError') {
-                setError('❌ Camera blocked for security. Ensure you\'re on HTTPS (secure connection) or localhost.');
+                setError('📷 Camera blocked for security reasons.\n\n✅ You can upload a selfie photo instead using the button below.');
+                setUseFileUpload(true);
             } else {
-                setError(`❌ Camera access failed: ${err.message || 'Unknown error'}\n\nTroubleshooting:\n- Check browser camera permissions\n- Try a different browser\n- Restart your computer`);
+                setError('📷 Camera access failed.\n\n✅ You can upload a selfie photo instead using the button below.');
                 setUseFileUpload(true);
             }
         } finally {
@@ -256,17 +260,27 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
                     {/* File Upload Fallback */}
                     {!cameraStarted && !capturedImage && useFileUpload && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                            <Camera className="w-16 h-16 text-yellow-500 mb-4" />
-                            <p className="text-yellow-400 text-sm mb-4 text-center">Camera permission blocked</p>
+                            <Camera className="w-16 h-16 text-blue-500 mb-4" />
+                            <p className="text-white text-lg font-semibold mb-2 text-center">Upload Your Selfie</p>
+                            <p className="text-gray-400 text-sm mb-6 text-center">
+                                Select a clear, recent selfie photo from your device
+                            </p>
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={isUploading}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition disabled:opacity-50"
+                                className="px-8 py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-lg font-bold text-lg transition disabled:opacity-50 shadow-lg"
                             >
-                                📁 Upload Selfie Photo
+                                {isUploading ? (
+                                    <>
+                                        <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>📁 Choose Photo</>
+                                )}
                             </button>
-                            <p className="text-gray-400 text-xs mt-3 text-center">
-                                Select a recent selfie photo from your device
+                            <p className="text-gray-500 text-xs mt-4 text-center">
+                                Make sure your face is clearly visible
                             </p>
                             <input
                                 ref={fileInputRef}
