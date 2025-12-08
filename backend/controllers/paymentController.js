@@ -74,10 +74,29 @@ export const createOrder = async (req, res) => {
     const data = await response.json();
     console.log("Cashfree response (status", response.status, "):", data);
 
-    // ✅ NEW CHECK
+    // ✅ NEW CHECK - Log more details for debugging
     if (!data.order_id) {
-      console.error("Cashfree API did not return order_id:", data);
-      return res.status(500).json({ error: "Failed to create order", gateway: data });
+      console.error("Cashfree API error details:", {
+        status: response.status,
+        statusText: response.statusText,
+        fullResponse: data,
+        requestData: orderData,
+        credentials: {
+          appId: process.env.CASHFREE_APP_ID ? "SET" : "MISSING",
+          secretKey: process.env.CASHFREE_SECRET_KEY ? "SET" : "MISSING",
+          env: process.env.CASHFREE_ENV || "NOT SET (defaults to sandbox)",
+          url: url
+        }
+      });
+      return res.status(500).json({ 
+        error: "Failed to create order", 
+        gateway: data,
+        debug: {
+          status: response.status,
+          message: data.message || data.error || "Unknown error",
+          type: data.type || "Unknown"
+        }
+      });
     }
 
     // Save order in DB
@@ -285,5 +304,27 @@ export const paymentWebhook = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Webhook processing failed", details: err.message });
+  }
+};
+
+// Diagnostic endpoint to check Cashfree configuration
+export const checkPaymentConfig = async (req, res) => {
+  try {
+    const config = {
+      cashfreeConfigured: !!(process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY),
+      environment: process.env.CASHFREE_ENV || "sandbox (default)",
+      appIdSet: !!process.env.CASHFREE_APP_ID,
+      secretKeySet: !!process.env.CASHFREE_SECRET_KEY,
+      url: getCashfreeUrl(),
+      frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+      backendUrl: process.env.BACKEND_URL || "http://localhost:5000",
+      nodeEnv: process.env.NODE_ENV || "development"
+    };
+    
+    console.log("Payment config check:", config);
+    res.status(200).json(config);
+  } catch (err) {
+    console.error("Config check failed:", err);
+    res.status(500).json({ error: "Config check failed", details: err.message });
   }
 };

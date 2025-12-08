@@ -1,5 +1,5 @@
 import express from "express";
-import { createOrder, verifyPayment, paymentWebhook } from "../controllers/paymentController.js";
+import { createOrder, verifyPayment, paymentWebhook, checkPaymentConfig } from "../controllers/paymentController.js";
 import { authMiddleware, requireActiveAccount } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -12,5 +12,8 @@ router.post("/verify", authMiddleware, requireActiveAccount, verifyPayment);
 
 // Cashfree webhook (no auth needed)
 router.post("/webhook", paymentWebhook);
+
+// Diagnostic endpoint - check payment configuration (no auth for debugging)
+router.get("/config/check", checkPaymentConfig);
 
 export default router;
