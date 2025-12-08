@@ -121,6 +121,11 @@ export default function PremiumPage() {
   // Load Cashfree SDK
   const loadCashfreeSDK = () => {
     return new Promise((resolve, reject) => {
+      // Suppress PaymentJSInterface error on web
+      if (typeof window !== 'undefined' && !window.PaymentJSInterface) {
+        window.PaymentJSInterface = { handleError: () => {} };
+      }
+
       if (window.Cashfree) {
         resolve(window.Cashfree({ mode: process.env.NEXT_PUBLIC_CASHFREE_ENV || 'sandbox' }));
         return;
