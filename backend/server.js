@@ -39,7 +39,7 @@ if (process.env.NODE_ENV === "production") {
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:3000"];
+  : ["http://localhost:3000", "http://145.132.98.6:3000"];
 
 // CORS must run BEFORE any rate limiting so preflight gets headers
 app.use(

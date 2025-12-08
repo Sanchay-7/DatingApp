@@ -16,6 +16,15 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
     const canvasRef = useRef(null);
     const fileInputRef = useRef(null);
 
+    // Check browser support on mount
+    useEffect(() => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.warn('[CAMERA] getUserMedia not supported - showing file upload option');
+            setError('📷 Live camera not available in this browser.\n\n✅ You can upload a selfie photo instead using the button below.');
+            setUseFileUpload(true);
+        }
+    }, []);
+
     // Start camera
     const startCamera = async () => {
         try {
@@ -27,8 +36,9 @@ const StepSelfie = ({ formData, updateFormData, goToNext }) => {
             // Check if getUserMedia is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.error('[CAMERA] getUserMedia not supported');
-                setError('Your browser does not support camera access. Please use a modern browser like Chrome, Firefox, or Edge.');
+                setError('📷 Live camera not supported in this browser.\n\nPlease use the file upload option below to upload your selfie instead.\n\n✅ Supported browsers: Chrome, Firefox, Safari, Edge (latest versions)');
                 setIsRequestingPermission(false);
+                setUseFileUpload(true); // Automatically show file upload option
                 return;
             }
 
