@@ -368,6 +368,8 @@ export default function PremiumPage() {
                 </div>
 
                 <div className="space-y-3">
+                  {/* HIDDEN: Automatic payment gateway button */}
+                  {/* 
                   <button
                     onClick={() => handleUpgrade(tier.id)}
                     disabled={isProcessing}
@@ -375,6 +377,7 @@ export default function PremiumPage() {
                   >
                     {isProcessing ? 'Processing...' : 'Upgrade with Gateway (auto verify)'}
                   </button>
+                  */}
 
                   <button
                     onClick={() => handleHostedForm(tier.id)}
