@@ -225,9 +225,18 @@ model Payment {
   status        String   @default("PENDING")
   subscriptionTier SubscriptionTier?
 
+  // Manual payment proof (screenshot) for admin verification
+  proofUrl        String?
+  proofPublicId   String?
+  proofStatus     String   @default("NONE") // NONE | PENDING | APPROVED | REJECTED
+  adminNote       String?
+  verifiedByAdminId String?
+  verifiedAt      DateTime?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
+  @@index([proofStatus])
 }

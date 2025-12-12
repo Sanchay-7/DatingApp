@@ -3,13 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Users, CheckSquare, BarChart2, LogOut } from 'lucide-react';
+import { Shield, Users, CheckSquare, BarChart2, LogOut, CreditCard } from 'lucide-react';
 
 export default function AdminSidebar() {
     const currentPath = usePathname();
 
     const navLinks = [
         { name: "User Management", href: "/admin/users", icon: Users },
+        { name: "Payment Verification", href: "/admin/payments", icon: CreditCard },
         { name: "Moderation", href: "/admin/moderation", icon: CheckSquare },
         { name: "Analytics", href: "/admin/analytics", icon: BarChart2 },
     ];

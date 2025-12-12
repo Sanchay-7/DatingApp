@@ -64,6 +64,58 @@ export const authFetch = async (path, options = {}) => {
   return data;
 };
 
+// Admin fetch - uses admin_token instead of valise_token
+export const adminFetch = async (path, options = {}) => {
+  if (typeof window === "undefined") {
+    throw new ApiError("adminFetch must be used in the browser", 500);
+  }
+
+  const token = window.localStorage.getItem("admin_token");
+  if (!token) {
+    throw new ApiError("Admin authentication token missing", 401);
+  }
+
+  const { headers: initHeaders, body, ...rest } = options;
+  const headers = new Headers(initHeaders || {});
+
+  if (!(body instanceof FormData) && !headers.has("Content-Type") && body) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  headers.set("Authorization", `Bearer ${token}`);
+
+  const fetchOptions = {
+    ...rest,
+    headers,
+  };
+
+  if (body) {
+    fetchOptions.body =
+      body instanceof FormData || typeof body === "string"
+        ? body
+        : JSON.stringify(body);
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}${path}`, fetchOptions);
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (err) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      data?.error ||
+      data?.message ||
+      `Request failed with status ${response.status}`;
+    throw new ApiError(message, response.status);
+  }
+
+  return data;
+};
+
 export const clearAuthToken = () => {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem("valise_token");

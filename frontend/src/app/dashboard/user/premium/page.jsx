@@ -33,11 +33,14 @@ export default function PremiumPage() {
   const router = useRouter();
   const [selectedTier, setSelectedTier] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [userTier, setUserTier] = useState('FREE');
   const [userGender, setUserGender] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [proofFile, setProofFile] = useState(null);
+  const fileInputRef = React.useRef(null);
 
   useEffect(() => {
     // Load user's current subscription tier and gender
@@ -115,6 +118,79 @@ export default function PremiumPage() {
       console.error('Payment error:', err);
       setErrorMessage(err.message || 'Failed to process payment');
       setIsProcessing(false);
+    }
+  };
+
+  // Alternate flow: open Cashfree hosted payment form (no automatic verification from Cashfree link alone)
+  const handleHostedForm = (tier) => {
+    setErrorMessage('');
+    setSuccessMessage('');
+    // NOTE: This just opens the hosted form. To auto-verify, Cashfree webhooks must be configured on the backend.
+    window.open('https://payments.cashfree.com/forms/gniriharuznoc', '_blank', 'noopener');
+  };
+
+  // Upload manual payment proof (screenshot) - use direct fetch for file upload
+  const handleProofUpload = async () => {
+    // If no file selected yet, open file picker
+    if (!proofFile) {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    try {
+      setErrorMessage('');
+      setSuccessMessage('');
+      setIsUploadingProof(true);
+
+      const formData = new FormData();
+      formData.append('proof', proofFile);
+      formData.append('amount', '49');
+      formData.append('subscriptionTier', 'PREMIUM');
+
+      const token = window.localStorage.getItem('valise_token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:5000';
+      
+      console.log('🚀 Uploading proof to:', `${baseUrl}/api/payment/manual/proof`);
+      console.log('📄 File:', proofFile.name, `(${(proofFile.size / 1024).toFixed(2)} KB)`);
+      console.log('🔐 Token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${baseUrl}/api/payment/manual/proof`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // DON'T set Content-Type; browser will set it to multipart/form-data with boundary
+        },
+        body: formData,
+      });
+
+      console.log('✅ Response status:', response.status);
+      const data = await response.json();
+      console.log('📦 Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || `Upload failed: ${response.status}`);
+      }
+
+      setSuccessMessage(`✅ Screenshot uploaded successfully! File: ${proofFile.name} | Order ID: ${data.orderId}`);
+      setProofFile(null);
+      
+      // Keep success message visible for 8 seconds
+      setTimeout(() => setSuccessMessage(''), 8000);
+    } catch (err) {
+      console.error('❌ Manual proof upload error:', err);
+      setErrorMessage(`Upload failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
+  // Handle file selection from file picker
+  const handleFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofFile(file);
+      setErrorMessage('');
+      console.log('📸 File selected:', file.name);
     }
   };
 
@@ -291,13 +367,58 @@ export default function PremiumPage() {
                   <p className="text-sm opacity-75">per month</p>
                 </div>
 
-                <button
-                  onClick={() => handleUpgrade(tier.id)}
-                  disabled={isProcessing}
-                  className="w-full py-3 rounded-lg font-semibold transition mb-6 bg-white text-gray-900 hover:bg-opacity-90 disabled:opacity-50"
-                >
-                  {isProcessing ? 'Processing...' : 'Upgrade to Premium'}
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => handleUpgrade(tier.id)}
+                    disabled={isProcessing}
+                    className="w-full py-3 rounded-lg font-semibold transition bg-white text-gray-900 hover:bg-opacity-90 disabled:opacity-50"
+                  >
+                    {isProcessing ? 'Processing...' : 'Upgrade with Gateway (auto verify)'}
+                  </button>
+
+                  <button
+                    onClick={() => handleHostedForm(tier.id)}
+                    className="w-full py-3 rounded-lg font-semibold transition bg-purple-50 text-purple-700 hover:bg-purple-100"
+                  >
+                    Pay via Cashfree Form (manual verify)
+                  </button>
+
+                  <div className="w-full rounded-lg border border-purple-100 bg-white/90 p-4 text-gray-800 space-y-3">
+                    <p className="text-sm font-semibold text-purple-700">Upload payment screenshot for manual approval</p>
+                    
+                    {/* Hidden file input - triggered by button */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelected}
+                      className="hidden"
+                    />
+                    
+                    {/* Show selected filename if file is selected */}
+                    {proofFile && (
+                      <div className="bg-blue-50 p-2 rounded text-sm text-blue-800">
+                        ✓ Selected: <strong>{proofFile.name}</strong> ({(proofFile.size / 1024).toFixed(2)} KB)
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={handleProofUpload}
+                      disabled={isUploadingProof}
+                      className="w-full py-2 rounded-md font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition"
+                    >
+                      {isUploadingProof ? 'Uploading...' : proofFile ? 'Upload Screenshot' : '📸 Click to Select Screenshot'}
+                    </button>
+                    
+                    <p className="text-xs text-gray-600">
+                      After paying via the Cashfree form, upload your payment screenshot. Admin will review and activate your premium manually.
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-white/90 bg-white/15 p-3 rounded-lg">
+                    Form option opens Cashfree hosted link. Auto-activation requires backend webhook verification; otherwise manual review is needed.
+                  </p>
+                </div>
 
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg mb-6">
                   <p className="text-xs opacity-75"><strong>Get unlimited likes</strong> (compared to 10 likes/day free)</p>

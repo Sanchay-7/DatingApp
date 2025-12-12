@@ -1,6 +1,7 @@
 import prisma from "../config/db.js";
 import fetch from "node-fetch";
 import crypto from "crypto";
+import cloudinary from "../config/cloudinary.js";
 
 // Determine Cashfree endpoint based on environment
 const getCashfreeUrl = () => {
@@ -344,5 +345,199 @@ export const checkPaymentConfig = async (req, res) => {
   } catch (err) {
     console.error("Config check failed:", err);
     res.status(500).json({ error: "Config check failed", details: err.message });
+  }
+};
+
+// --- Manual payment proof upload (screenshot) ---
+export const submitManualProof = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    // Extract from both req.body (JSON) and req.body (multipart fields parsed by multer)
+    let { amount, subscriptionTier } = req.body || {};
+    
+    // If not in body, try to extract from formData fields
+    amount = amount || 49;
+    subscriptionTier = subscriptionTier || "PREMIUM";
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const normalizedTier = subscriptionTier === "PREMIUM" ? "PREMIUM_MAN" : subscriptionTier;
+    const orderId = `manual_${userId}_${Date.now()}`;
+
+    let proofUrl = null;
+    let proofPublicId = null;
+
+    // Upload to Cloudinary only if file is provided
+    if (req.file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "payment-proofs",
+            resource_type: "image",
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+      proofUrl = uploadResult.secure_url;
+      proofPublicId = uploadResult.public_id;
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        userId,
+        orderId,
+        amount: Number(amount) || 49,
+        currency: "INR",
+        status: "MANUAL_PENDING",
+        subscriptionTier: normalizedTier,
+        proofUrl,
+        proofPublicId,
+        proofStatus: req.file ? "PENDING" : "NONE",
+      },
+    });
+
+    console.log("Manual proof submitted:", { userId, orderId, hasFile: !!req.file, proofStatus: payment.proofStatus });
+
+    return res.status(201).json({
+      success: true,
+      orderId,
+      proofUrl,
+      status: "MANUAL_PENDING",
+      payment,
+    });
+  } catch (err) {
+    console.error("Manual proof upload error:", err);
+    return res.status(500).json({ error: "Failed to process request", details: err.message });
+  }
+};
+
+// Admin: list pending manual proofs
+export const listManualProofs = async (req, res) => {
+  try {
+    const proofs = await prisma.payment.findMany({
+      where: { proofStatus: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            email: true,
+            phoneNumber: true,
+            gender: true,
+            subscriptionTier: true,
+          },
+        },
+      },
+    });
+    return res.json({ proofs });
+  } catch (err) {
+    console.error("List manual proofs error:", err);
+    return res.status(500).json({ error: "Failed to fetch proofs", details: err.message });
+  }
+};
+
+// Helper to activate subscription after manual approval
+const activateSubscription = async (payment) => {
+  if (!payment.subscriptionTier) return;
+
+  const subscriptionTier = payment.subscriptionTier;
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + 1);
+
+  const actualTier = subscriptionTier === "PREMIUM_MAN" ? "PREMIUM_MAN" : subscriptionTier;
+
+  await prisma.subscription.upsert({
+    where: { userId: payment.userId },
+    update: {
+      tier: actualTier,
+      status: "ACTIVE",
+      startDate: new Date(),
+      endDate,
+      superSwipesWeekly: 5,
+      spotlightsMonthly: 1,
+      unlimitedExtends: true,
+      unlimitedRematch: true,
+      unlimitedBacktrack: true,
+    },
+    create: {
+      userId: payment.userId,
+      tier: actualTier,
+      status: "ACTIVE",
+      startDate: new Date(),
+      endDate,
+      superSwipesWeekly: 5,
+      spotlightsMonthly: 1,
+      unlimitedExtends: true,
+      unlimitedRematch: true,
+      unlimitedBacktrack: true,
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: payment.userId },
+    data: {
+      subscriptionTier: actualTier,
+      superSwipesLeft: 5,
+      spotlightsLeft: 1,
+      backtrackAvailable: true,
+    },
+  });
+};
+
+// Admin decision on manual proof
+export const decideManualProof = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { approve, note } = req.body || {};
+
+    const payment = await prisma.payment.findUnique({ where: { orderId } });
+    if (!payment) {
+      return res.status(404).json({ error: "Payment not found" });
+    }
+
+    if (payment.proofStatus !== "PENDING") {
+      return res.status(400).json({ error: "Proof already processed" });
+    }
+
+    if (approve) {
+      const updated = await prisma.payment.update({
+        where: { orderId },
+        data: {
+          status: "SUCCESS",
+          proofStatus: "APPROVED",
+          adminNote: note,
+          verifiedByAdminId: req.admin?.id,
+          verifiedAt: new Date(),
+        },
+      });
+
+      await activateSubscription(updated);
+
+      return res.json({ success: true, status: "APPROVED", payment: updated });
+    }
+
+    const updated = await prisma.payment.update({
+      where: { orderId },
+      data: {
+        status: "MANUAL_REJECTED",
+        proofStatus: "REJECTED",
+        adminNote: note,
+        verifiedByAdminId: req.admin?.id,
+        verifiedAt: new Date(),
+      },
+    });
+
+    return res.json({ success: true, status: "REJECTED", payment: updated });
+  } catch (err) {
+    console.error("Manual proof decision error:", err);
+    return res.status(500).json({ error: "Failed to process decision", details: err.message });
   }
 };
