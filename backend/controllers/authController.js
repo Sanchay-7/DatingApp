@@ -120,10 +120,24 @@ export const login = async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
 
-    // 1️⃣ Check user existence
+    // 1️⃣ Check user existence - handle phone with/without +91
+    let searchConditions = [
+      { email: emailOrPhone },
+      { phoneNumber: emailOrPhone }
+    ];
+    
+    // If input looks like a phone number without country code, also try with +91
+    if (/^\d{10}$/.test(emailOrPhone)) {
+      searchConditions.push({ phoneNumber: `+91${emailOrPhone}` });
+    }
+    // If input has +91, also try without it
+    if (emailOrPhone.startsWith('+91')) {
+      searchConditions.push({ phoneNumber: emailOrPhone.replace('+91', '') });
+    }
+
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ email: emailOrPhone }, { phoneNumber: emailOrPhone }],
+        OR: searchConditions,
       },
     });
 
