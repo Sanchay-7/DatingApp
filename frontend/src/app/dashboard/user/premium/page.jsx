@@ -150,9 +150,7 @@ export default function PremiumPage() {
       const token = window.localStorage.getItem('valise_token');
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:5000';
       
-      console.log('🚀 Uploading proof to:', `${baseUrl}/api/payment/manual/proof`);
-      console.log('📄 File:', proofFile.name, `(${(proofFile.size / 1024).toFixed(2)} KB)`);
-      console.log('🔐 Token:', token ? 'Present' : 'Missing');
+      // Quiet mode: avoid noisy console logs in production
       
       const response = await fetch(`${baseUrl}/api/payment/manual/proof`, {
         method: 'POST',
@@ -163,9 +161,7 @@ export default function PremiumPage() {
         body: formData,
       });
 
-      console.log('✅ Response status:', response.status);
       const data = await response.json();
-      console.log('📦 Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || data.details || `Upload failed: ${response.status}`);
@@ -177,7 +173,7 @@ export default function PremiumPage() {
       // Keep success message visible for 8 seconds
       setTimeout(() => setSuccessMessage(''), 8000);
     } catch (err) {
-      console.error('❌ Manual proof upload error:', err);
+      // Suppress console noise; show concise UI error
       setErrorMessage(`Upload failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsUploadingProof(false);
@@ -190,7 +186,7 @@ export default function PremiumPage() {
     if (file) {
       setProofFile(file);
       setErrorMessage('');
-      console.log('📸 File selected:', file.name);
+      // Suppress console noise during file selection
     }
   };
 
