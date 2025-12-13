@@ -58,7 +58,9 @@ export default function Sidebar() {
 
     // Filter navLinks based on gender - Premium only for men
     const navLinks = allNavLinks.filter(link => {
-        if (link.menOnly && user?.gender === 'female') {
+        const genderLower = String(user?.gender || '').toLowerCase();
+        const isWoman = genderLower === 'woman' || genderLower === 'female';
+        if (link.menOnly && isWoman) {
             return false;
         }
         return true;

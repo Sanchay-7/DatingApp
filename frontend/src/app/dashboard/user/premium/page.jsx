@@ -53,8 +53,12 @@ export default function PremiumPage() {
         setUserGender(response.user?.gender);
         
         // Redirect women to dashboard (premium is only for men)
-        if (String(response.user?.gender || '').toLowerCase() === 'women') {
+        {
+          const g = String(response.user?.gender || '').toLowerCase();
+          const isWoman = g === 'woman' || g === 'female';
+          if (isWoman) {
           router.push('/dashboard');
+          }
         }
       } catch (err) {
         console.error('Failed to load user data:', err);
@@ -229,6 +233,10 @@ export default function PremiumPage() {
 
   // Women-only message and hard block render
   if (String(userGender || '').toLowerCase() === 'female') {
+  {
+    const g = String(userGender || '').toLowerCase();
+    const isWoman = g === 'woman' || g === 'female';
+    if (isWoman) {
     return (
       <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
@@ -263,6 +271,7 @@ export default function PremiumPage() {
         </div>
       </div>
     );
+    }
   }
 
   // Men premium page
