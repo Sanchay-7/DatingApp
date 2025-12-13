@@ -53,7 +53,7 @@ export default function PremiumPage() {
         setUserGender(response.user?.gender);
         
         // Redirect women to dashboard (premium is only for men)
-        if (response.user?.gender === 'Female') {
+        if (String(response.user?.gender || '').toLowerCase() === 'women') {
           router.push('/dashboard');
         }
       } catch (err) {
@@ -227,8 +227,8 @@ export default function PremiumPage() {
     );
   }
 
-  // Women-only message
-  if (userGender === 'Female') {
+  // Women-only message and hard block render
+  if (String(userGender || '').toLowerCase() === 'female') {
     return (
       <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
