@@ -126,13 +126,16 @@ export const login = async (req, res) => {
       { phoneNumber: emailOrPhone }
     ];
     
-    // If input looks like a phone number without country code, also try with +91
-    if (/^\d{10}$/.test(emailOrPhone)) {
-      searchConditions.push({ phoneNumber: `+91${emailOrPhone}` });
+    // Normalize phone to try with +91 prefix if not present
+    const trimmed = emailOrPhone.trim();
+    
+    // If it's 10 digits without +, also try with +91
+    if (/^\d{10}$/.test(trimmed)) {
+      searchConditions.push({ phoneNumber: `+91${trimmed}` });
     }
-    // If input has +91, also try without it
-    if (emailOrPhone.startsWith('+91')) {
-      searchConditions.push({ phoneNumber: emailOrPhone.replace('+91', '') });
+    // If it starts with +91, also try without the +91
+    else if (trimmed.startsWith('+91') && trimmed.length === 13) {
+      searchConditions.push({ phoneNumber: trimmed.substring(3) });
     }
 
     const user = await prisma.user.findFirst({

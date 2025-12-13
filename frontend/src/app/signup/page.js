@@ -197,7 +197,7 @@ export default function SignUp() {
               <input
                 name="phone"
                 type="tel"
-                placeholder="+91XXXXXXXXXX"
+                placeholder="9876543210"
                 value={formData.phone}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border rounded-lg"

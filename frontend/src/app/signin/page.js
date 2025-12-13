@@ -13,13 +13,19 @@ export default function SignIn() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Normalize phone: if it's 10 digits, prepend +91
+      let normalizedInput = emailOrPhone.trim();
+      if (/^\d{10}$/.test(normalizedInput)) {
+        normalizedInput = `+91${normalizedInput}`;
+      }
+      
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/signin`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ emailOrPhone, password }),
+          body: JSON.stringify({ emailOrPhone: normalizedInput, password }),
         }
       );
       const data = await res.json();
