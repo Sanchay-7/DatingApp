@@ -14,7 +14,7 @@ export default function SignIn() {
     e.preventDefault();
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/signin`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
