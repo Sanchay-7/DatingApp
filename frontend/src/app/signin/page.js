@@ -92,10 +92,11 @@ export default function SignIn() {
               type="text"
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
-              placeholder="Enter email or phone number"
+              placeholder="email@example.com or 9876543210"
               className="w-full px-4 py-3 border-2 border-black/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-600 text-black placeholder-gray-600"
               required
             />
+            <p className="text-xs text-gray-500 mt-1">Enter phone without country code (e.g., 9876543210)</p>
           </div>
 
           <div>
