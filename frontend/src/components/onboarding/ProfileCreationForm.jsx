@@ -303,7 +303,7 @@ const ProfileCreationForm = () => {
               V
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">Valise Dating</h1>
+              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">LuveKg</h1>
               <p className="text-xs text-gray-600 -mt-0.5">Create a profile that matches your vibe</p>
             </div>
           </div>
@@ -332,7 +332,7 @@ const ProfileCreationForm = () => {
             {/* Section header */}
             <div className="px-6 md:px-10 py-6 rounded-t-2xl bg-yellow-50 border-b border-yellow-100">
               <h2 className="text-lg md:text-xl font-bold">Complete your profile</h2>
-              <p className="text-sm text-gray-700 mt-1">Safety-first, modern, and simple—just like the rest of Valise.</p>
+              <p className="text-sm text-gray-700 mt-1">Safety-first, modern, and simple—just like the rest of LuveKg.</p>
             </div>
 
             {/* Step body */}

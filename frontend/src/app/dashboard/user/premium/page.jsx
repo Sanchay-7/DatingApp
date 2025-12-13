@@ -126,7 +126,7 @@ export default function PremiumPage() {
     setErrorMessage('');
     setSuccessMessage('');
     // NOTE: This just opens the hosted form. To auto-verify, Cashfree webhooks must be configured on the backend.
-    window.open('https://payments.cashfree.com/forms/gniriharuznoc', '_blank', 'noopener');
+    window.open('https://payments.cashfree.com/forms/atafataf', '_blank', 'noopener');
   };
 
   // Upload manual payment proof (screenshot) - use direct fetch for file upload

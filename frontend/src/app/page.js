@@ -26,11 +26,15 @@ export default function Home() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-pink-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-pink-600 flex items-center justify-center text-white font-bold">
-              V
-            </div>
+            <Image 
+              src="/logo.jpg" 
+              alt="LuveKg" 
+              width={40} 
+              height={40}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-md object-cover"
+            />
             <span className="text-base sm:text-lg font-extrabold tracking-tight">
-              Valise Dating
+              LuveKg
             </span>
           </div>
 

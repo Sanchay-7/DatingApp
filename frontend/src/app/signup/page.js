@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth } from "../../../config/firebaseConfig";
@@ -141,10 +142,14 @@ export default function SignUp() {
     <>
       <header className="flex items-center justify-between px-6 py-5 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-md bg-pink-500 flex items-center justify-center text-white font-bold">
-            V
-          </div>
-          <span className="text-lg font-bold">Valise Dating</span>
+          <Image 
+            src="/logo.jpg" 
+            alt="LuveKg" 
+            width={40} 
+            height={40}
+            className="w-10 h-10 rounded-md object-cover"
+          />
+          <span className="text-lg font-bold">LuveKg</span>
         </div>
         <nav className="hidden md:flex items-center gap-6">
           <Link

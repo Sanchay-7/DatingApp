@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
 import { requestNotificationPermission } from '@/lib/notifications';
 
@@ -11,19 +12,33 @@ export default function DashboardLayout({ children }) {
     }, []);
 
     return (
-        // This is the responsive layout container
-        // It's a COLUMN on mobile, and a ROW on large screens
-        <div className="flex flex-col lg:flex-row h-screen overflow-hidden">
+        <div className="flex flex-col h-screen overflow-hidden">
+            {/* Top Header - Mobile only */}
+            <header className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Image 
+                        src="/logo.jpg" 
+                        alt="LuveKg" 
+                        width={36} 
+                        height={36}
+                        className="w-9 h-9 rounded-md object-cover"
+                    />
+                    <span className="font-bold text-lg">LuveKg</span>
+                </div>
+            </header>
 
-            {/* Sidebar container: full width on mobile, 256px (w-64) on desktop */}
-            <div className="w-full lg:w-64 shrink-0">
-                <Sidebar />
+            {/* Main layout container */}
+            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+                {/* Sidebar container: full width on mobile, 256px (w-64) on desktop */}
+                <div className="w-full lg:w-64 shrink-0">
+                    <Sidebar />
+                </div>
+
+                {/* Main content area */}
+                <main className="flex-1 overflow-y-auto bg-gray-50 pb-20 lg:pb-0">
+                    {children}
+                </main>
             </div>
-
-            {/* Main content area */}
-            <main className="flex-1 overflow-y-auto bg-gray-50 pb-20 lg:pb-0">
-                {children}
-            </main>
         </div>
     );
 }

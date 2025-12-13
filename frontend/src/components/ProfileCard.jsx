@@ -186,7 +186,7 @@ export default function ProfileCard({ profile, onLike, onSkip, onReport }) {
                             {profileLocation || 'Location loading...'}
                         </p>
                         <p className="text-base sm:text-lg text-pink-600 font-semibold">
-                            {profile.job || "Valise Member"}
+                            {profile.job || "LuveKg Member"}
                         </p>
                     </div>
 

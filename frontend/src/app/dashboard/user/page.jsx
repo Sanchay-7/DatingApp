@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 // Import your components
 import ProfileCard from '@/components/ProfileCard';
 import { authFetch, clearAuthToken } from '@/lib/apiClient';
@@ -373,8 +374,22 @@ export default function DashboardPage() {
 
     // --- MAIN RENDER ---
     return (
-        <div className="flex flex-1 overflow-hidden bg-gray-50 h-screen">
-            <main className="w-full flex flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 md:p-8">
+        <div className="flex flex-col flex-1 overflow-hidden bg-gray-50 h-screen">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                    <Image 
+                        src="/logo.jpg" 
+                        alt="LuveKg" 
+                        width={40} 
+                        height={40}
+                        className="w-10 h-10 rounded-md object-cover"
+                    />
+                    <h1 className="text-lg sm:text-xl font-bold text-gray-900">LuveKg</h1>
+                </div>
+            </header>
+
+            <main className="flex-1 w-full flex flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 md:p-8">
                 {/* Header with Title and Filter Button */}
                 <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
                     <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">

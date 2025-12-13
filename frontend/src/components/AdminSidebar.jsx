@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Shield, Users, CheckSquare, BarChart2, LogOut, CreditCard } from 'lucide-react';
@@ -24,17 +25,25 @@ export default function AdminSidebar() {
             {/* --- THIS IS THE FIX (BRANDING) --- */}
             {/* Admin Branding: Replaced Shield with V logo and new text */}
             <div className="hidden lg:flex text-2xl font-bold text-pink-500 mb-8 border-b border-gray-700 pb-4 items-center flex-shrink-0">
-                <div className="w-8 h-8 rounded-lg bg-pink-600 flex items-center justify-center mr-2 flex-shrink-0">
-                    <span className="text-xl font-bold text-white">V</span>
-                </div>
-                Valise Admin
+                <Image 
+                    src="/logo.jpg" 
+                    alt="LuveKg" 
+                    width={32} 
+                    height={32}
+                    className="w-8 h-8 rounded-lg object-cover mr-2 flex-shrink-0"
+                />
+                LuveKg Admin
             </div>
 
-            {/* Mobile-only Logo: Replaced Shield with V logo */}
+            {/* Mobile-only Logo */}
             <div className="lg:hidden text-pink-500 p-2 flex-shrink-0">
-                <div className="w-7 h-7 rounded-lg bg-pink-600 flex items-center justify-center">
-                    <span className="text-lg font-bold text-white">V</span>
-                </div>
+                <Image 
+                    src="/logo.jpg" 
+                    alt="LuveKg" 
+                    width={28} 
+                    height={28}
+                    className="w-7 h-7 rounded-lg object-cover"
+                />
             </div>
             {/* --- END OF FIX --- */}
 
