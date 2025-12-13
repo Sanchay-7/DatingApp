@@ -232,12 +232,11 @@ export default function PremiumPage() {
   }
 
   // Women-only message and hard block render
-  if (String(userGender || '').toLowerCase() === 'female') {
   {
     const g = String(userGender || '').toLowerCase();
     const isWoman = g === 'woman' || g === 'female';
     if (isWoman) {
-    return (
+      return (
       <div className="min-h-screen bg-linear-to-b from-gray-50 to-white p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
           <div className="bg-linear-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-12 text-center">
@@ -270,7 +269,7 @@ export default function PremiumPage() {
           </div>
         </div>
       </div>
-    );
+      );
     }
   }
 
