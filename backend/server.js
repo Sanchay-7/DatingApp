@@ -110,19 +110,21 @@ app.get("/", async (req, res) => {
   }
 });
 
-// Routes
+// Routes with /api prefix (canonical)
 app.use("/api/auth", authRoutes);
-// Backward-compatible alias without /api prefix (for misconfigured clients)
-app.use("/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/report", reportRoutes);
-
-// --- THIS IS THE FIX ---
-// This ensures your server listens for /api/user/* to match your frontend
-app.use("/api/user", userRoutes);
-app.use("/api/chat", chatRoutes);
 app.use("/api/payment", paymentRoutes);
+
+// Backward-compatible aliases without /api prefix (for misconfigured clients)
+app.use("/auth", authRoutes);
+app.use("/chat", chatRoutes);
+app.use("/user", userRoutes);
+app.use("/v1/admin", adminRoutes);
+app.use("/report", reportRoutes);
+app.use("/payment", paymentRoutes);
 
 // 404 handler
 app.use((req, res) => {
