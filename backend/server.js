@@ -39,9 +39,9 @@ if (process.env.NODE_ENV === "production") {
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:3000","https://luvekg.fun"];
+  : ["http://localhost:3000","https://www.luvekg.fun","https://luvekg.fun"];
 
-// CORS must run BEFORE any rate limiting so preflight gets headers
+// CORS must run BEFORE any rate limiting so preflight gets hesaders
 app.use(
   cors({
     origin: function (origin, callback) {
