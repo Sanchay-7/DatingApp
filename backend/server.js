@@ -112,6 +112,8 @@ app.get("/", async (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+// Backward-compatible alias without /api prefix (for misconfigured clients)
+app.use("/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/report", reportRoutes);
