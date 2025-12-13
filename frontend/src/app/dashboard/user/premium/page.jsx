@@ -9,8 +9,8 @@ const PREMIUM_TIERS = [
   {
     id: 'PREMIUM',
     name: 'Premium',
-    price: 49,
-    priceMonthly: 49,
+    price: 9,
+    priceMonthly: 9,
     description: 'Get unlimited likes and enhanced features',
     color: 'from-purple-500 to-purple-700',
     features: [
@@ -90,7 +90,7 @@ export default function PremiumPage() {
         method: 'POST',
         body: {
           userId: user.id,
-          amount: 49,
+          amount: 9,
           email: user.email,
           phone: user.phoneNumber,
           subscriptionTier: tier,
@@ -148,7 +148,7 @@ export default function PremiumPage() {
 
       const formData = new FormData();
       formData.append('proof', proofFile);
-      formData.append('amount', '49');
+      formData.append('amount', '9');
       formData.append('subscriptionTier', 'PREMIUM');
 
       const token = window.localStorage.getItem('valise_token');
@@ -282,7 +282,7 @@ export default function PremiumPage() {
           Premium - Unlimited Likes
         </h1>
         <p className="text-lg text-gray-600">
-          Get unlimited likes, backtracks, and premium features for just ₹49/month
+          Get unlimited likes, backtracks, and premium features for just ₹9/month
         </p>
       </div>
 
@@ -301,7 +301,7 @@ export default function PremiumPage() {
       {/* Current Status */}
       {userTier !== 'FREE' && (
         <div className="max-w-6xl mx-auto mb-8 p-4 bg-blue-100 text-blue-700 rounded-lg">
-          ✓ You are subscribed to <strong>Premium</strong> at ₹49 per month
+          ✓ You are subscribed to <strong>Premium</strong> at ₹9 per month
         </div>
       )}
 
@@ -429,7 +429,7 @@ export default function PremiumPage() {
 
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg mb-6">
                   <p className="text-xs opacity-75"><strong>Get unlimited likes</strong> (compared to 10 likes/day free)</p>
-                  <p className="text-xs opacity-75"><strong>Only ₹49/month</strong> - Your access to premium features</p>
+                  <p className="text-xs opacity-75"><strong>Only ₹9/month</strong> - Your access to premium features</p>
                 </div>
               </div>
 
