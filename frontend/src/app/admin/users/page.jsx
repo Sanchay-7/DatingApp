@@ -112,9 +112,14 @@ export default function UserManagementPage() {
                 setUsers(users.map(u => u.id === userId ? { ...u, accountStatus: 'ACTIVE' } : u));
                 setSelectedUser(null);
                 setVerificationNote('');
+                alert('✅ User approved successfully!');
+            } else {
+                const errorData = await res.json();
+                alert(`❌ Failed to approve user: ${errorData.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error("Failed to approve user:", error);
+            alert('❌ Network error. Please try again.');
         }
     };
 

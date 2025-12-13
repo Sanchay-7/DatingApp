@@ -46,14 +46,23 @@ export default function Sidebar() {
         router.push("/signin");
     };
 
-    const navLinks = [
+    // Base navigation links
+    const allNavLinks = [
         { name: "Discover", href: "/dashboard/user", icon: Eye },
         { name: "Messages", href: "/dashboard/user/messages", icon: MessageCircle },
         { name: "Likes You", href: "/dashboard/user/likes", icon: ThumbsUp },
         { name: "My Profile", href: "/dashboard/user/profile", icon: UserIcon },
-        { name: "Premium", href: "/dashboard/user/premium", icon: Zap },
+        { name: "Premium", href: "/dashboard/user/premium", icon: Zap, menOnly: true },
         { name: "Settings", href: "/dashboard/user/settings", icon: SettingsIcon },
     ];
+
+    // Filter navLinks based on gender - Premium only for men
+    const navLinks = allNavLinks.filter(link => {
+        if (link.menOnly && user?.gender === 'female') {
+            return false;
+        }
+        return true;
+    });
 
     const activeClass = "flex flex-row items-center p-2 lg:p-3 rounded-lg bg-pink-600 text-white font-semibold text-base whitespace-nowrap";
     const inactiveClass = "flex flex-row items-center p-2 lg:p-3 rounded-lg text-gray-300 hover:bg-gray-700 text-base whitespace-nowrap";
